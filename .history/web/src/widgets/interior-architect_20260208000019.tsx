@@ -114,10 +114,12 @@ function InteriorArchitect() {
     console.log("🔍 Widget state:", {
       mode,
       productsCount: products.length,
-      storedRoomImage: storedRoomImage ? String(storedRoomImage).substring(0, 50) + '...' : 'none',
+      storedRoomImage: storedRoomImage ? storedRoomImage.substring(0, 50) + '...' : 'none',
       roomImageUrlState: roomImageUrl ? roomImageUrl.substring(0, 50) + '...' : 'none',
       hasResponseMetadata: !!responseMetadata,
       hasCallToolData: !!callToolData,
+      metadataRoomImage: responseMetadata?.roomImageUrl ? responseMetadata.roomImageUrl.substring(0, 50) + '...' : 'none',
+      callToolMetaRoomImage: callToolData?.meta?.roomImageUrl ? (callToolData.meta.roomImageUrl as string).substring(0, 50) + '...' : 'none',
     });
   }, [storedRoomImage, roomImageUrl, mode, products.length, responseMetadata, callToolData]);
 
