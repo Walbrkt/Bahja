@@ -11,7 +11,7 @@ const server = new McpServer(
     "interior-architect",
     {
       description:
-        "Browse IKEA furniture and visualize it in rooms. Widget handles image uploads and product selection.",
+        "Interior design tool. When user uploads or shares a room image, ALWAYS call this tool and pass the image URL in the imageUrl parameter. Required for browsing IKEA furniture and generating furnished room visualizations.",
       _meta: {
         ui: {
           csp: {
@@ -24,7 +24,7 @@ const server = new McpServer(
     },
     {
       description:
-        "Widget for interior design. User uploads room image in widget, selects IKEA furniture, generates visualization. Call this when user wants to decorate/furnish a room.",
+        "Step 1: User provides a room image - ALWAYS pass the image URL as imageUrl. Step 2: Browse IKEA catalogue. Step 3: User clicks product to generate.",
       inputSchema: {
         imageUrl: z.string().optional().describe("IMPORTANT: The URL of the room image the user uploaded or shared. Always pass this when the user provides an image. Can be an https:// URL or data: URI."),
         productImageUrl: z.string().optional().describe("Product image URL from selected product"),
@@ -57,11 +57,10 @@ const server = new McpServer(
 
         // PHASE 1: Need room image first
         if (!imageUrl) {
-          // Widget shows upload interface - just return empty state
           return {
             content: [{
               type: "text" as const,
-              text: "👆 Use the widget above to upload your room image and browse IKEA furniture.",
+              text: "I need a room image to get started. Please share or upload a room photo, and I'll pass the image URL to the interior-architect tool to show you IKEA furniture options.",
             }],
             _meta: {
               mode: "needImage",
