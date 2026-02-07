@@ -405,7 +405,8 @@ const server = new McpServer(
       _meta: {
         ui: {
           csp: {
-            resourceDomains: ["https://images.unsplash.com"],
+            connectDomains: ["https://image.pollinations.ai"],
+            resourceDomains: ["https://images.unsplash.com", "https://image.pollinations.ai"],
             redirectDomains: [
               "https://www.ikea.com",
               "https://www.maisonsdumonde.com",
@@ -683,6 +684,230 @@ const server = new McpServer(
           {
             type: "text" as const,
             text: `Generated room render: ${renderDescription}`,
+          },
+        ],
+      };
+    },
+  )
+
+  // ── Tool: generate-room-image ────────────────────────────────────────────
+  .registerTool(
+    "generate-room-image",
+    {
+      description:
+        "Generate an AI-rendered photorealistic image of a designed room using the selected furniture and paint colors. Uses AI image generation to create a visual preview of what the room will look like.",
+      inputSchema: {
+        roomWidth: z.number().describe("Room width in cm"),
+        roomLength: z.number().describe("Room length in cm"),
+        roomHeight: z.number().describe("Room height in cm"),
+        style: z.string().describe("Design style: scandinavian, modern, industrial, bohemian, classic"),
+        furnitureNames: z.array(z.string()).describe("Names of selected furniture items to include"),
+        paintColor: z.string().optional().describe("Wall paint color name"),
+        paintHex: z.string().optional().describe("Wall paint hex color"),
+        roomType: z.string().optional().describe("Room type: living room, bedroom, office, dining room"),
+        userPrompt: z.string().optional().describe("Additional user description or instructions for the image"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: true,
+        destructiveHint: false,
+      },
+    },
+    async ({ roomWidth, roomLength, roomHeight, style, furnitureNames, paintColor, roomType, userPrompt }) => {
+      // Build a detailed prompt for AI image generation
+      const furnitureList = furnitureNames.length > 0
+        ? furnitureNames.join(", ")
+        : "minimal furniture";
+
+      const prompt = [
+        `Photorealistic interior design render of a ${style} ${roomType || "room"}`,
+        `${roomWidth / 100}m × ${roomLength / 100}m × ${roomHeight / 100}m`,
+        `with ${paintColor || "white"} walls`,
+        `furnished with: ${furnitureList}`,
+        `professional interior photography, wide angle lens, natural daylight`,
+        `8k, architectural visualization, warm ambient lighting`,
+        userPrompt ? userPrompt : "",
+      ].filter(Boolean).join(", ");
+
+      // Use Pollinations.ai free API for image generation
+      const encodedPrompt = encodeURIComponent(prompt);
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=768&seed=${Date.now()}&nologo=true`;
+
+      return {
+        structuredContent: {
+          imageUrl,
+          prompt,
+          style,
+          roomType: roomType || "room",
+          furnitureIncluded: furnitureNames,
+          wallColor: paintColor || "white",
+        },
+        content: [
+          {
+            type: "text" as const,
+            text: `Generated AI room visualization: ${style} ${roomType || "room"} with ${furnitureList} and ${paintColor || "white"} walls. Image is being rendered.`,
+          },
+        ],
+      };
+    },
+  )
+
+  // ── Tool: get-3d-room-data ───────────────────────────────────────────────
+  .registerTool(
+    "get-3d-room-data",
+    {
+      description:
+        "Generate 3D scene data for an interactive room visualization. Returns furniture positions, dimensions, colors, and room geometry for rendering in a 3D viewer.",
+      inputSchema: {
+        roomWidth: z.number().describe("Room width in cm"),
+        roomLength: z.number().describe("Room length in cm"),
+        roomHeight: z.number().describe("Room height in cm"),
+        furnitureIds: z.array(z.string()).describe("IDs of selected furniture items"),
+        paintHex: z.string().optional().describe("Wall paint hex color, e.g. #B2BDA0"),
+        floorColor: z.string().optional().describe("Floor hex color"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: false,
+        destructiveHint: false,
+      },
+    },
+    async ({ roomWidth, roomLength, roomHeight, furnitureIds, paintHex, floorColor }) => {
+      // Look up furniture from catalog
+      const selectedFurniture = FURNITURE_CATALOG.filter((f) =>
+        furnitureIds.includes(f.id),
+      );
+
+      // Auto-place furniture along walls and in room
+      const placements: Array<{
+        id: string;
+        name: string;
+        category: string;
+        width: number;
+        depth: number;
+        height: number;
+        x: number;
+        y: number;
+        z: number;
+        color: string;
+        rotation: number;
+      }> = [];
+
+      // Category-based colors
+      const categoryColors: Record<string, string> = {
+        sofa: "#8B7355",
+        table: "#DEB887",
+        chair: "#CD853F",
+        shelf: "#F5F5DC",
+        lamp: "#FFD700",
+        rug: "#BC8F8F",
+        bed: "#D2B48C",
+        desk: "#A0522D",
+        armchair: "#8B4513",
+        mirror: "#C0C0C0",
+      };
+
+      // Simple placement algorithm — distribute furniture around the room
+      const wallOffset = 10; // cm from wall
+      const centerX = roomWidth / 2;
+      const centerZ = roomLength / 2;
+
+      selectedFurniture.forEach((f, i) => {
+        let x = 0,
+          y = f.height / 2,
+          z = 0,
+          rotation = 0;
+
+        switch (f.category) {
+          case "sofa":
+          case "bed":
+            // Against back wall, centered
+            x = centerX;
+            z = f.depth / 2 + wallOffset;
+            rotation = 0;
+            break;
+          case "table":
+            // Center of room
+            x = centerX;
+            z = centerZ;
+            break;
+          case "desk":
+            // Against right wall
+            x = roomWidth - f.depth / 2 - wallOffset;
+            z = centerZ;
+            rotation = Math.PI / 2;
+            break;
+          case "chair":
+            // Near table
+            x = centerX + 60;
+            z = centerZ + 40;
+            rotation = -Math.PI / 4;
+            break;
+          case "shelf":
+          case "mirror":
+            // Against left wall
+            x = f.depth / 2 + wallOffset;
+            z = 50 + i * 120;
+            rotation = Math.PI / 2;
+            break;
+          case "lamp":
+            // Corner
+            x = roomWidth - 50;
+            z = wallOffset + 30;
+            break;
+          case "rug":
+            // Center floor
+            x = centerX;
+            y = 1;
+            z = centerZ;
+            break;
+          case "armchair":
+            // Angled in corner
+            x = roomWidth - f.width / 2 - wallOffset - 20;
+            z = f.depth / 2 + wallOffset + 20;
+            rotation = -Math.PI / 6;
+            break;
+          default:
+            x = wallOffset + 60 + i * 80;
+            z = wallOffset + 60;
+        }
+
+        placements.push({
+          id: f.id,
+          name: f.name,
+          category: f.category,
+          width: f.width,
+          depth: f.depth,
+          height: f.height,
+          x,
+          y,
+          z,
+          color: categoryColors[f.category] || "#999999",
+          rotation,
+        });
+      });
+
+      return {
+        structuredContent: {
+          room: {
+            width: roomWidth,
+            length: roomLength,
+            height: roomHeight,
+            wallColor: paintHex || "#FAFAFA",
+            floorColor: floorColor || "#DEB887",
+          },
+          furniture: placements.map((p) => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            position: { x: p.x, y: p.y, z: p.z },
+          })),
+          itemCount: placements.length,
+        },
+        content: [
+          {
+            type: "text" as const,
+            text: `3D scene ready with ${placements.length} furniture items placed in a ${roomWidth}×${roomLength}cm room.`,
           },
         ],
       };

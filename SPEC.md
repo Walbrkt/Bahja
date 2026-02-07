@@ -26,6 +26,8 @@ Design and furnish rooms through conversation. Target: anyone moving, redecorati
 
 **Selections sidebar:** Running list of items the user has selected, with total price and "Open store" links.
 
+**Visualize Tab:** Interactive 3D room viewer and AI-generated photorealistic room image. Users can toggle between the two views.
+
 ## UX Flows
 
 ### Design a Room
@@ -36,12 +38,18 @@ Design and furnish rooms through conversation. Target: anyone moving, redecorati
 5. User browses, selects items, views details
 6. User clicks "Buy" links to visit retailer sites
 
+### Visualize a Room
+1. Select furniture and paint items from the grid.
+2. Navigate to the "Visualize" tab.
+3. **3D Viewer**: View an interactive 3D representation of the room with selected items placed.
+4. **AI Image Generation**: Generate a photorealistic image of the room using AI.
+
 ## API Design
 
 ### Widget: `design-room`
 - **Input:** `{ roomWidth, roomLength, roomHeight, style, budget, preferences, imageUrl? }`
 - **Output:** `{ renderUrl, furniture[], paint[] }`
-- **Views:** Setup form → Results gallery → Item detail (modal)
+- **Views:** Setup form → Results gallery → Visualize tab → Item detail (modal)
 - **State:** `selectedItems[]` (persisted, visible to LLM)
 
 ### Tool: `search-furniture`
@@ -59,7 +67,17 @@ Design and furnish rooms through conversation. Target: anyone moving, redecorati
 - **Output:** `{ renderUrl, description }` 
 - **Annotations:** readOnlyHint: true
 
+### Tool: `generate-room-image`
+- **Input:** `{ roomWidth, roomLength, roomHeight, style, furnitureNames[], paintColor?, paintHex?, roomType?, userPrompt? }`
+- **Output:** `{ imageUrl, prompt, style, roomType, furnitureIncluded[], wallColor }`
+- **Annotations:** readOnlyHint: true
+
+### Tool: `get-3d-room-data`
+- **Input:** `{ roomWidth, roomLength, roomHeight, furnitureIds[], paintHex?, floorColor? }`
+- **Output:** `{ room: { width, length, height, wallColor, floorColor }, furniture: [{ id, name, category, position: { x, y, z } }], itemCount }`
+- **Annotations:** readOnlyHint: true
+
 ## Product Context
-- **APIs:** Furniture/paint search via mock data (hackathon); image generation via placeholder
+- **APIs:** Furniture/paint search via mock data (hackathon); image generation via Pollinations.ai
 - **Auth:** None required
 - **Constraints:** Hackathon scope — mock data, placeholder images; real API integration planned post-hackathon
