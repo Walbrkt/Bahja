@@ -99,11 +99,6 @@ export async function editRoomImage({
 
     const result = await response.json();
     
-    console.log(`✅ fal.ai response received:`, result.images ? `${result.images.length} image(s) generated` : 'ERROR: no images in response');
-    if (result.images?.[0]) {
-      console.log(`   🎨 Result URL: ${result.images[0].url}`);
-    }
-    
     console.log(`✅ Generated successfully in ${Date.now() - startTime}ms`);
     
     return {

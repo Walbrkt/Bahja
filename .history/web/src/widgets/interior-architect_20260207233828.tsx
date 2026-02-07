@@ -96,27 +96,32 @@ function ProductCard({
 }
 
 function InteriorArchitect() {
-  const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
+  const { output, responseMetadata, isPending, parameters } = useToolInfo<"interior-architect">();
   const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
   const [roomImageUrl, setRoomImageUrl] = useState<string>("");
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedProductName, setSelectedProductName] = useState<string>("");
 
   // Get products from either widget output or call tool response
   const products = (responseMetadata?.products || callToolData?.meta?.products || []) as IkeaProduct[];
   const mode = (responseMetadata?.mode || callToolData?.meta?.mode || "needImage") as "needImage" | "selection" | "result";
-  const storedRoomImage = (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
+  
+  // IMPORTANT: Check for imageUrl from original parameters (uploaded via chat)
+  const uploadedImageUrl = (parameters as any)?.imageUrl;
+  const storedRoomImage = uploadedImageUrl || (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
   const furnishedImageUrl = (responseMetadata?.furnishedImageUrl || callToolData?.meta?.furnishedImageUrl) as string | undefined;
   const isLoading = isPending || isCallPending;
 
-  // Debug: Log widget state
+  // Debug: Log parameters and image sources
   useEffect(() => {
     console.log("🔍 Widget state:", {
+      hasParameters: !!parameters,
+      uploadedImageUrl: uploadedImageUrl ? uploadedImageUrl.substring(0, 50) + '...' : 'none',
       storedRoomImage: storedRoomImage ? storedRoomImage.substring(0, 50) + '...' : 'none',
       mode,
-      productsCount: products.length,
     });
-  }, [storedRoomImage, mode, products.length]);
+  }, [parameters, uploadedImageUrl, storedRoomImage, mode]);
 
   // Debug: Log when furnished image URL changes
   useEffect(() => {
@@ -127,8 +132,13 @@ function InteriorArchitect() {
     }
   }, [furnishedImageUrl, mode, products.length]);
 
-  // Don't auto-load - wait for explicit user action
-  // This prevents the widget from making unnecessary API calls
+  // Auto-prompt for room image on mount
+  useEffect(() => {
+    if (!loadedOnce && !isLoading) {
+      setLoadedOnce(true);
+      callTool({});
+    }
+  }, [loadedOnce, isLoading, callTool]);
 
   const handleProductSelect = async (product: IkeaProduct) => {
     console.log(`🎨 Generating room with: ${product.name}`);

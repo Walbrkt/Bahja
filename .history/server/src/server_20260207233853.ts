@@ -11,7 +11,7 @@ const server = new McpServer(
     "interior-architect",
     {
       description:
-        "ONLY use this when user explicitly wants to: 1) Upload a room image and browse IKEA furniture, 2) Visualize furniture in their room. Do NOT use for general questions about furniture or interior design.",
+        "Browse IKEA furniture catalogue. Select a product, then provide your room image to see it furnished.",
       _meta: {
         ui: {
           csp: {
@@ -35,7 +35,7 @@ const server = new McpServer(
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        openWorldHint: false,
         destructiveHint: false,
       },
     },

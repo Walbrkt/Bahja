@@ -1,6 +1,6 @@
 import { McpServer } from "skybridge/server";
 import { z } from "zod";
-import { editRoomImage } from "./services/fal-service.js";
+import { editRoomImage, generateRoomImage } from "./services/fal-service.js";
 import { searchIkeaProducts as searchIkeaProductsAPI } from "./services/ikea-service.js";
 
 const server = new McpServer(
@@ -11,7 +11,7 @@ const server = new McpServer(
     "interior-architect",
     {
       description:
-        "ONLY use this when user explicitly wants to: 1) Upload a room image and browse IKEA furniture, 2) Visualize furniture in their room. Do NOT use for general questions about furniture or interior design.",
+        "Browse IKEA furniture catalogue. Select a product, then provide your room image to see it furnished.",
       _meta: {
         ui: {
           csp: {
@@ -35,20 +35,12 @@ const server = new McpServer(
       },
       annotations: {
         readOnlyHint: true,
-        openWorldHint: true,
+        openWorldHint: false,
         destructiveHint: false,
       },
     },
     async ({ imageUrl, productImageUrl, prompt, style, budget, selectedProductId }) => {
       try {
-        console.log("🔍 Interior Architect called with:", {
-          hasImageUrl: !!imageUrl,
-          imageUrlType: imageUrl?.startsWith('data:') ? 'data-uri' : imageUrl?.startsWith('http') ? 'url' : 'unknown',
-          hasProductImageUrl: !!productImageUrl,
-          hasSelectedProductId: !!selectedProductId,
-          prompt,
-        });
-
         // PHASE 1: Need room image first
         if (!imageUrl) {
           return {
@@ -61,8 +53,6 @@ const server = new McpServer(
             },
           };
         }
-
-        console.log("✅ Room image received:", imageUrl.substring(0, 100) + "...");
 
         // PHASE 2: Show catalogue (have imageUrl, no product selected yet)
         if (!selectedProductId) {

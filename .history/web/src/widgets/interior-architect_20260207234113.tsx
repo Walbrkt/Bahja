@@ -96,7 +96,7 @@ function ProductCard({
 }
 
 function InteriorArchitect() {
-  const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
+  const { output, responseMetadata, isPending } = useToolInfo<"interior-architect">();
   const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
   const [roomImageUrl, setRoomImageUrl] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);

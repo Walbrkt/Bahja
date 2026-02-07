@@ -71,10 +71,6 @@ export async function editRoomImage({
     console.log(`   Image 1 (room): ${imageUrl.length} chars`);
     if (productImageUrl) console.log(`   Image 2 (product): ${productImageUrl.length} chars`);
     
-    console.log(`📤 Sending ${images.length} images to fal.ai nano-banana/edit`);
-    console.log(`   Image 1 (room): ${imageUrl.length} chars`);
-    if (productImageUrl) console.log(`   Image 2 (product): ${productImageUrl.length} chars`);
-    
     const response = await fetch("https://fal.run/fal-ai/nano-banana/edit", {
       method: "POST",
       headers: {
@@ -98,11 +94,6 @@ export async function editRoomImage({
     }
 
     const result = await response.json();
-    
-    console.log(`✅ fal.ai response received:`, result.images ? `${result.images.length} image(s) generated` : 'ERROR: no images in response');
-    if (result.images?.[0]) {
-      console.log(`   🎨 Result URL: ${result.images[0].url}`);
-    }
     
     console.log(`✅ Generated successfully in ${Date.now() - startTime}ms`);
     
