@@ -116,22 +116,22 @@ export async function editRoomImage({
         style ? `${style} style` : "",
       ].filter(Boolean).join(", ");
 
-  console.log(`🖼️ Generating with nano-banana/edit:`);
+  console.log(`🖼️ Generating with nano-banana/edit (2 images):`);
   console.log(`   📍 Base room: ${imageUrl.substring(0, 100)}...`);
   if (productImageUrl) console.log(`   🛋️ Reference product: ${productImageUrl.substring(0, 100)}...`);
   console.log(`   💬 Prompt: ${enhancedPrompt.substring(0, 150)}...`);
 
   try {
-    // Convert data URIs to fal.ai compatible URLs (upload if needed)
-    console.log(`🔄 Ensuring images are fal.ai compatible...`);
-    const roomImageUrl = await ensureFalCompatibleUrl(imageUrl, falApiKey);
-    const productUrl = productImageUrl ? await ensureFalCompatibleUrl(productImageUrl, falApiKey) : undefined;
-    
-    const images = productUrl ? [roomImageUrl, productUrl] : [roomImageUrl];
+    // Use nano-banana/edit - expects array of images
+    const images = productImageUrl ? [imageUrl, productImageUrl] : [imageUrl];
     
     console.log(`📤 Sending ${images.length} images to fal.ai nano-banana/edit`);
-    console.log(`   Image 1 (room): ${roomImageUrl}`);
-    if (productUrl) console.log(`   Image 2 (product): ${productUrl}`);
+    console.log(`   Image 1 (room): ${imageUrl.length} chars`);
+    if (productImageUrl) console.log(`   Image 2 (product): ${productImageUrl.length} chars`);
+    
+    console.log(`📤 Sending ${images.length} images to fal.ai nano-banana/edit`);
+    console.log(`   Image 1 (room): ${imageUrl.length} chars`);
+    if (productImageUrl) console.log(`   Image 2 (product): ${productImageUrl.length} chars`);
     
     const response = await fetch("https://fal.run/fal-ai/nano-banana/edit", {
       method: "POST",
