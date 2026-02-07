@@ -22,12 +22,16 @@ async function generateImageWithFal(
   }
 
   try {
+    const seed = Math.floor(Math.random() * 999999);
+    console.log("[fal.ai] Generating image with prompt:", prompt.substring(0, 120) + "...");
+    
     const result = await fal.subscribe("fal-ai/flux-2-flex", {
       input: {
         prompt,
         image_size: { width: 1024, height: 768 },
         enable_prompt_expansion: true,
         num_inference_steps: 28,
+        seed,
       },
     });
 
@@ -35,7 +39,7 @@ async function generateImageWithFal(
       || (result as any)?.images?.[0]?.url;
 
     if (imageUrl && typeof imageUrl === "string") {
-      console.log("[fal.ai] Image generated successfully");
+      console.log("[fal.ai] Image generated successfully (seed:", seed, ")");
       return { url: imageUrl, isFallback: false };
     }
 
@@ -45,6 +49,66 @@ async function generateImageWithFal(
     console.error("[fal.ai] Image generation failed:", error);
     return { url: fallbackUrl, isFallback: true };
   }
+}
+
+// ─── Style-specific prompt enrichment ────────────────────────────────────────
+
+const STYLE_VISUAL_PROMPTS: Record<string, string> = {
+  moroccan: "traditional Moroccan riad interior, ornate zellige tile mosaics on walls, carved cedar wood arches and doorframes, pierced brass lanterns casting intricate shadow patterns, colorful handwoven Berber rugs on terracotta floor, tadelakt plaster walls in warm earthy tones, low cushioned seating with embroidered fabrics, geometric Islamic patterns, mosaic fountain, warm golden ambient light, rich jewel tones",
+  bohemian: "bohemian eclectic interior, layered textiles and macramé wall hangings, rattan and wicker furniture, hanging plants and greenery everywhere, vintage Persian rugs, warm earthy tones mixed with jewel colors, string lights, floor cushions, eclectic art collection, relaxed cozy atmosphere",
+  scandinavian: "Scandinavian minimalist interior, clean white walls, light oak wood floors, simple elegant furniture with organic shapes, large windows with natural light flooding in, hygge cozy atmosphere, wool throws and sheepskin rugs, muted neutral palette with soft pastels, potted plants, functional simplicity",
+  modern: "contemporary modern interior design, clean geometric lines, sleek minimalist furniture, neutral palette with bold accent colors, large statement art piece on wall, polished concrete or hardwood floors, recessed lighting, open plan layout, glass and metal accents, designer furniture pieces",
+  industrial: "industrial loft interior, exposed brick walls, raw steel beams and pipes on ceiling, polished concrete floor, vintage Edison bulb pendant lights, reclaimed wood furniture, leather seating, metal shelving units, large factory-style windows, urban warehouse aesthetic",
+  classic: "classic European interior design, ornate crown moldings and wainscoting, elegant chandelier, rich wood paneling, traditional wingback chairs, Persian silk rug, marble fireplace mantel, oil paintings in gilded frames, damask upholstery, refined sophisticated atmosphere",
+  minimal: "ultra-minimal interior, pure white walls, single statement furniture piece, vast open space, zen-like calm, concrete and natural materials, no clutter, architectural light and shadow play, Japanese-inspired simplicity, monochrome palette",
+  french: "elegant French Parisian apartment interior, Haussmann-style with tall ceilings, ornate plaster moldings and ceiling roses, herringbone parquet oak floors, marble fireplace, Louis XVI style furniture, silk curtains, crystal chandelier, gilded mirrors, soft ivory and gold palette, fresh flowers in porcelain vase",
+  japanese: "Japanese wabi-sabi interior, tatami mat flooring, shoji screen sliding doors, low wooden furniture, tokonoma alcove with ikebana arrangement, natural wood and bamboo materials, paper lantern lighting, minimalist zen garden view, earth tones, serene meditative atmosphere",
+  tropical: "tropical resort interior, rattan and bamboo furniture, lush tropical plants, ceiling fan, woven jute rug, white linen curtains billowing, natural wood and stone materials, ocean-inspired colors, open to outdoor terrace, relaxed island luxury atmosphere",
+};
+
+/**
+ * Build a rich, style-aware prompt for AI image generation.
+ */
+function buildImagePrompt(params: {
+  style: string;
+  roomType?: string | null;
+  roomWidth: number;
+  roomLength: number;
+  roomHeight: number;
+  paintColor?: string | null;
+  paintHex?: string | null;
+  furnitureNames?: string[];
+  userPrompt?: string | null;
+}): string {
+  const { style, roomType, roomWidth, roomLength, roomHeight, paintColor, paintHex, furnitureNames, userPrompt } = params;
+  
+  // Get style-specific visual description
+  const styleKey = style.toLowerCase().replace(/[^a-z]/g, "");
+  const styleVisuals = STYLE_VISUAL_PROMPTS[styleKey] 
+    || STYLE_VISUAL_PROMPTS[Object.keys(STYLE_VISUAL_PROMPTS).find(k => styleKey.includes(k)) || ""] 
+    || "elegant interior design";
+
+  const parts: string[] = [
+    `Photorealistic interior design photograph of a beautiful ${style} ${roomType || "living room"}`,
+    `spacious room approximately ${roomWidth / 100}m × ${roomLength / 100}m with ${roomHeight / 100}m ceilings`,
+    styleVisuals,
+  ];
+
+  if (paintColor && paintColor !== "white") {
+    parts.push(`walls painted in ${paintColor}${paintHex ? ` (${paintHex})` : ""}`);
+  }
+
+  if (furnitureNames && furnitureNames.length > 0) {
+    parts.push(`featuring: ${furnitureNames.slice(0, 5).join(", ")}`);
+  }
+
+  if (userPrompt) {
+    parts.push(userPrompt);
+  }
+
+  parts.push("professional architectural photography, wide angle lens, natural daylight streaming through windows, high-end interior design magazine quality, ultra detailed, 8K resolution");
+
+  return parts.join(". ");
 }
 
 // ─── Mock Furniture Catalog ──────────────────────────────────────────────────
@@ -943,15 +1007,17 @@ const server = new McpServer(
         // ── Auto-generate AI room image via fal.ai ──
         const topPaint = paint[0];
         const furnitureNames = furniture.slice(0, 6).map((f) => f.name);
-        const imagePrompt = [
-          `Photorealistic interior design render of a ${style} ${roomType || "room"}`,
-          `${roomWidth / 100}m wide × ${roomLength / 100}m long × ${roomHeight / 100}m high`,
-          topPaint ? `with ${topPaint.color} walls` : "with white walls",
-          furnitureNames.length > 0 ? `furnished with: ${furnitureNames.join(", ")}` : "",
-          preferences ? preferences : "",
-          `professional interior photography, wide angle lens, natural daylight`,
-          `8k, architectural visualization, warm ambient lighting`,
-        ].filter(Boolean).join(", ");
+        const imagePrompt = buildImagePrompt({
+          style,
+          roomType,
+          roomWidth,
+          roomLength,
+          roomHeight,
+          paintColor: topPaint?.color || null,
+          paintHex: topPaint?.colorHex || null,
+          furnitureNames,
+          userPrompt: preferences || null,
+        });
         
         // Fallback: Use a placeholder interior design image from Unsplash based on style
         const styleImageMap: Record<string, string> = {
@@ -1177,7 +1243,17 @@ const server = new McpServer(
         .filter(Boolean)
         .join(" ");
 
-      const prompt = `Photorealistic interior design render: ${renderDescription}, professional interior photography, natural daylight, 8k`;
+      const prompt = buildImagePrompt({
+        style,
+        roomType: null,
+        roomWidth,
+        roomLength,
+        roomHeight,
+        paintColor: paintColor || null,
+        paintHex: null,
+        furnitureNames: furnitureNames || [],
+        userPrompt: description || null,
+      });
       const fallbackUrl = "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&h=600&fit=crop";
       const { url: renderUrl } = await generateImageWithFal(prompt, fallbackUrl);
 
@@ -1216,21 +1292,23 @@ const server = new McpServer(
         destructiveHint: false,
       },
     },
-    async ({ roomWidth, roomLength, roomHeight, style, furnitureNames, paintColor, roomType, userPrompt }) => {
-      // Build a detailed prompt for AI image generation
+    async ({ roomWidth, roomLength, roomHeight, style, furnitureNames, paintColor, paintHex, roomType, userPrompt }) => {
+      // Build a detailed, style-aware prompt for AI image generation
       const furnitureList = furnitureNames.length > 0
         ? furnitureNames.join(", ")
         : "minimal furniture";
 
-      const prompt = [
-        `Photorealistic interior design render of a ${style} ${roomType || "room"}`,
-        `${roomWidth / 100}m × ${roomLength / 100}m × ${roomHeight / 100}m`,
-        `with ${paintColor || "white"} walls`,
-        `furnished with: ${furnitureList}`,
-        `professional interior photography, wide angle lens, natural daylight`,
-        `8k, architectural visualization, warm ambient lighting`,
-        userPrompt ? userPrompt : "",
-      ].filter(Boolean).join(", ");
+      const prompt = buildImagePrompt({
+        style,
+        roomType,
+        roomWidth,
+        roomLength,
+        roomHeight,
+        paintColor: paintColor || null,
+        paintHex: paintHex || null,
+        furnitureNames,
+        userPrompt: userPrompt || null,
+      });
 
       // Use fal.ai for AI image generation
       const fallbackUrl = "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1024&h=768&fit=crop";
