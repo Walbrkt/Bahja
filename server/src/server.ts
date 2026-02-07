@@ -20,7 +20,7 @@ async function generateImageWithFal(
   const falKey = process.env.FAL_KEY;
   if (!falKey) {
     console.warn("[fal.ai] FAL_KEY not set — using fallback image");
-    return { url: fallbackUrl, isFallback: true };
+    return { url: proxyImageUrl(fallbackUrl), isFallback: true };
   }
 
   // Ensure credentials are set (in case env loaded after fal.config)
@@ -33,7 +33,7 @@ async function generateImageWithFal(
     const result = await fal.subscribe("fal-ai/recraft/v3/text-to-image", {
       input: {
         prompt,
-        image_size: { width: 1024, height: 768 },
+        image_size: "landscape_4_3",
         style: "realistic_image/natural_light",
       },
       logs: true,
@@ -45,24 +45,40 @@ async function generateImageWithFal(
     });
 
     console.log("[fal.ai] Raw result keys:", Object.keys(result || {}));
-    console.log("[fal.ai] Data keys:", Object.keys((result as any)?.data || {}));
 
     const imageUrl = (result as any)?.data?.images?.[0]?.url
       || (result as any)?.images?.[0]?.url;
 
     if (imageUrl && typeof imageUrl === "string") {
-      console.log("[fal.ai] ✅ Image generated successfully:", imageUrl);
-      // Wrap through proxy to avoid CSP issues in widget iframe
+      console.log("[fal.ai] ✅ Image generated:", imageUrl.substring(0, 100));
+
+      // Download the image and convert to base64 data URI
+      // This completely avoids CSP/proxy issues — the image is embedded in the response
+      try {
+        const imgResponse = await fetch(imageUrl);
+        if (imgResponse.ok) {
+          const arrayBuffer = await imgResponse.arrayBuffer();
+          const base64 = Buffer.from(arrayBuffer).toString("base64");
+          const contentType = imgResponse.headers.get("content-type") || "image/png";
+          const dataUri = `data:${contentType};base64,${base64}`;
+          console.log("[fal.ai] ✅ Converted to data URI (", Math.round(base64.length / 1024), "KB)");
+          return { url: dataUri, isFallback: false };
+        }
+      } catch (dlError: any) {
+        console.warn("[fal.ai] Could not download image for base64:", dlError.message);
+      }
+
+      // Fallback: use proxy URL
       const proxiedUrl = proxyImageUrl(imageUrl);
       return { url: proxiedUrl, isFallback: false };
     }
 
-    console.warn("[fal.ai] No image URL in response. Full result:", JSON.stringify(result).substring(0, 500));
-    return { url: fallbackUrl, isFallback: true };
+    console.warn("[fal.ai] No image URL in response. Result:", JSON.stringify(result).substring(0, 500));
+    return { url: proxyImageUrl(fallbackUrl), isFallback: true };
   } catch (error: any) {
-    console.error("[fal.ai] ❌ Image generation failed:", error?.message || error);
-    console.error("[fal.ai] Error details:", JSON.stringify(error?.body || error?.response || {}).substring(0, 500));
-    return { url: fallbackUrl, isFallback: true };
+    console.error("[fal.ai] ❌ Generation failed:", error?.message || error);
+    console.error("[fal.ai] Details:", JSON.stringify(error?.body || error?.response || {}).substring(0, 500));
+    return { url: proxyImageUrl(fallbackUrl), isFallback: true };
   }
 }
 
