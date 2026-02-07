@@ -1,6 +1,6 @@
 import "@/index.css";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { mountWidget, useDisplayMode, createStore } from "skybridge/web";
 import { useOpenExternal } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
@@ -254,7 +254,7 @@ function SelectionPanel() {
   );
 }
 
-// ─── Visualize Tab ───────────────────────────────────────────────────────────
+// ─── Visualize Tab (3D + AI regenerate) ──────────────────────────────────────
 
 function VisualizeTab({
   roomWidth,
@@ -272,7 +272,6 @@ function VisualizeTab({
   const { selectedItems } = useSelectionStore();
   const [userPrompt, setUserPrompt] = useState("");
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
-  const [activeVisual, setActiveVisual] = useState<"3d" | "ai">("3d");
 
   const {
     callTool: callGenerateImage,
@@ -280,7 +279,6 @@ function VisualizeTab({
     isPending: isImagePending,
   } = useCallTool("generate-room-image");
 
-  // Get selected furniture and paint info
   const selectedFurniture = selectedItems.filter((i) => i.type === "furniture");
   const selectedPaint = selectedItems.find((i) => i.type === "paint");
 
@@ -298,7 +296,6 @@ function VisualizeTab({
     mirror: "#C0C0C0",
   };
 
-  // Place furniture for 3D view
   const wallOffset = 10;
   const centerX = roomWidth / 2;
   const centerZ = roomLength / 2;
@@ -380,7 +377,6 @@ function VisualizeTab({
 
   const handleGenerateImage = () => {
     const furnitureNames = selectedFurniture.map((f) => f.name);
-    // Reset previous image so loading state shows
     setGeneratedImageUrl(null);
     callGenerateImage({
       roomWidth,
@@ -395,131 +391,87 @@ function VisualizeTab({
     });
   };
 
-  // Update generated image when data arrives
-  if (imageData && !generatedImageUrl && !isImagePending) {
-    const sc = imageData.structuredContent as Record<string, unknown> | undefined;
-    const url = sc?.imageUrl;
-    if (url && typeof url === "string") {
-      setGeneratedImageUrl(url);
+  useEffect(() => {
+    if (imageData && !isImagePending) {
+      const sc = imageData.structuredContent as Record<string, unknown> | undefined;
+      const url = sc?.imageUrl;
+      if (url && typeof url === "string") {
+        setGeneratedImageUrl(url);
+      }
     }
-  }
+  }, [imageData, isImagePending]);
 
   return (
-    <div className="visualize-tab" data-llm="Visualize tab — 3D viewer and AI image generation">
-      {/* Sub-tabs */}
-      <div className="visual-subtabs">
-        <button
-          className={`visual-subtab ${activeVisual === "3d" ? "visual-subtab--active" : ""}`}
-          onClick={() => setActiveVisual("3d")}
-        >
-          🧊 3D Room View
-        </button>
-        <button
-          className={`visual-subtab ${activeVisual === "ai" ? "visual-subtab--active" : ""}`}
-          onClick={() => setActiveVisual("ai")}
-        >
-          🎨 AI Generated Image
-        </button>
+    <div className="visualize-tab" data-llm="3D viewer + AI image regeneration">
+      {/* 3D Viewer */}
+      <div className="visual-panel">
+        <div className="visual-panel__header">
+          <h3>Interactive 3D Room Preview</h3>
+          <p className="visual-panel__hint">
+            🖱️ Drag to rotate · Scroll to zoom · {selectedFurniture.length} item{selectedFurniture.length !== 1 ? "s" : ""} placed
+            {selectedPaint ? ` · Walls: ${selectedPaint.description?.split(" — ")[0]}` : ""}
+          </p>
+        </div>
+        {selectedFurniture.length === 0 ? (
+          <div className="visual-empty">
+            <p>👆 Select furniture items from the Furniture tab to see them in 3D</p>
+            <p className="visual-empty__sub">Selected paint colors will also appear on the walls</p>
+          </div>
+        ) : (
+          <RoomViewer3D room={roomConfig} furniture={furniturePlacements} />
+        )}
       </div>
 
-      {/* 3D Viewer */}
-      {activeVisual === "3d" && (
-        <div className="visual-panel">
-          <div className="visual-panel__header">
-            <h3>Interactive 3D Room Preview</h3>
-            <p className="visual-panel__hint">
-              🖱️ Drag to rotate · Scroll to zoom · {selectedFurniture.length} item{selectedFurniture.length !== 1 ? "s" : ""} placed
-              {selectedPaint ? ` · Walls: ${selectedPaint.description?.split(" — ")[0]}` : ""}
-            </p>
-          </div>
-          {selectedFurniture.length === 0 ? (
-            <div className="visual-empty">
-              <p>👆 Select furniture items from the Furniture tab to see them in 3D</p>
-              <p className="visual-empty__sub">Selected paint colors will also appear on the walls</p>
-            </div>
-          ) : (
-            <RoomViewer3D room={roomConfig} furniture={furniturePlacements} />
-          )}
+      {/* AI Regenerate section */}
+      <div className="visual-panel" style={{ marginTop: 16 }}>
+        <div className="visual-panel__header">
+          <h3>🎨 Regenerate AI Image</h3>
+          <p className="visual-panel__hint">
+            Customize the prompt and regenerate with your selected items
+          </p>
         </div>
-      )}
-
-      {/* AI Image Generation */}
-      {activeVisual === "ai" && (
-        <div className="visual-panel">
-          <div className="visual-panel__header">
-            <h3>AI Room Visualization</h3>
-            <p className="visual-panel__hint">
-              Generate a photorealistic render of your room with selected items
-            </p>
+        <div className="ai-prompt-section">
+          <textarea
+            className="ai-prompt-input"
+            placeholder="Add custom details… e.g., 'warm afternoon light, plants by the window, cozy atmosphere'"
+            value={userPrompt}
+            onChange={(e) => setUserPrompt(e.target.value)}
+            rows={2}
+          />
+          <button
+            className="btn btn--primary btn--generate"
+            onClick={handleGenerateImage}
+            disabled={isImagePending}
+          >
+            {isImagePending ? (
+              <>
+                <span className="btn-spinner" /> Generating...
+              </>
+            ) : (
+              "✨ Regenerate with My Selections"
+            )}
+          </button>
+        </div>
+        {isImagePending && (
+          <div className="ai-loading">
+            <div className="rc-loading__spinner" />
+            <p>🎨 AI is painting your room...</p>
           </div>
-
-          <div className="ai-prompt-section">
-            <textarea
-              className="ai-prompt-input"
-              placeholder="Describe your dream room... (optional) e.g., 'warm afternoon light, plants by the window, cozy atmosphere'"
-              value={userPrompt}
-              onChange={(e) => setUserPrompt(e.target.value)}
-              rows={3}
+        )}
+        {generatedImageUrl && !isImagePending && (
+          <div className="ai-result">
+            <img
+              src={generatedImageUrl}
+              alt="AI generated room visualization"
+              className="ai-result__image"
             />
-            <div className="ai-prompt-tags">
-              {selectedFurniture.length > 0 && (
-                <span className="ai-tag">🪑 {selectedFurniture.length} furniture</span>
-              )}
-              {selectedPaint && (
-                <span className="ai-tag" style={{ borderColor: selectedPaint.colorHex }}>
-                  🎨 {selectedPaint.description?.split(" — ")[0]}
-                </span>
-              )}
-              <span className="ai-tag">✨ {style}</span>
-              <span className="ai-tag">📐 {roomWidth}×{roomLength}cm</span>
+            <div className="ai-result__caption">
+              <span className="ai-result__badge">AI Generated</span>
+              Custom render with your selections
             </div>
-            <button
-              className="btn btn--primary btn--generate"
-              onClick={handleGenerateImage}
-              disabled={isImagePending}
-            >
-              {isImagePending ? (
-                <>
-                  <span className="btn-spinner" /> Generating...
-                </>
-              ) : generatedImageUrl ? (
-                "🔄 Regenerate Image"
-              ) : (
-                "✨ Generate Room Image"
-              )}
-            </button>
           </div>
-
-          {/* Loading */}
-          {isImagePending && (
-            <div className="ai-loading">
-              <div className="rc-loading__spinner" />
-              <p>🎨 AI is painting your room...</p>
-              <p className="ai-loading__sub">This may take 10-30 seconds</p>
-            </div>
-          )}
-
-          {/* Generated Image Display */}
-          {generatedImageUrl && !isImagePending && (
-            <div className="ai-result">
-              <img
-                src={generatedImageUrl}
-                alt="AI generated room visualization"
-                className="ai-result__image"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src =
-                    "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&h=600&fit=crop";
-                }}
-              />
-              <div className="ai-result__caption">
-                <span className="ai-result__badge">AI Generated</span>
-                {style.charAt(0).toUpperCase() + style.slice(1)} {roomType || "room"} — {roomWidth}×{roomLength}cm
-                {selectedFurniture.length > 0 && ` with ${selectedFurniture.map((f) => f.name).join(", ")}`}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -529,7 +481,9 @@ function VisualizeTab({
 function DesignRoom() {
   const { input, output, isPending, responseMetadata } = useToolInfo<"design-room">();
   const [displayMode, setDisplayMode] = useDisplayMode();
-  const [activeTab, setActiveTab] = useState<"furniture" | "paint" | "visualize">("furniture");
+  const [activeTab, setActiveTab] = useState<"furniture" | "paint" | "3d">("furniture");
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // Loading state
   if (isPending || !output) {
@@ -579,6 +533,32 @@ function DesignRoom() {
         </button>
       </header>
 
+      {/* ── Hero AI Image ── */}
+      {output.renderImageUrl && (
+        <div className="rc-hero" data-llm="AI-generated room visualization">
+          {!imageLoaded && !imageError && (
+            <div className="rc-hero__loading">
+              <div className="rc-loading__spinner" />
+              <p>🎨 Generating your room visualization…</p>
+            </div>
+          )}
+          <img
+            src={output.renderImageUrl}
+            alt={`AI visualization of ${output.style} ${output.roomType || "room"}`}
+            className={`rc-hero__image ${imageLoaded ? "rc-hero__image--visible" : ""}`}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+          />
+          {imageLoaded && (
+            <div className="rc-hero__caption">
+              <span className="rc-hero__badge">✨ AI Generated</span>
+              {output.style?.charAt(0).toUpperCase()}{output.style?.slice(1)} {output.roomType || "room"} —{" "}
+              {output.roomDimensions.width}×{output.roomDimensions.length} cm
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Selections */}
       <SelectionPanel />
 
@@ -597,14 +577,14 @@ function DesignRoom() {
           🎨 Paint ({output.paintCount})
         </button>
         <button
-          className={`rc-tab ${activeTab === "visualize" ? "rc-tab--active" : ""}`}
-          onClick={() => setActiveTab("visualize")}
+          className={`rc-tab ${activeTab === "3d" ? "rc-tab--active" : ""}`}
+          onClick={() => setActiveTab("3d")}
         >
-          🧊 Visualize
+          🧊 3D View
         </button>
       </div>
 
-      {/* Grid */}
+      {/* Furniture Grid */}
       {activeTab === "furniture" && (
         <div className="rc-grid">
           {meta.furniture.map((item) => (
@@ -616,6 +596,7 @@ function DesignRoom() {
         </div>
       )}
 
+      {/* Paint Grid */}
       {activeTab === "paint" && (
         <div className="rc-grid">
           {meta.paint.map((item) => (
@@ -627,7 +608,8 @@ function DesignRoom() {
         </div>
       )}
 
-      {activeTab === "visualize" && (
+      {/* 3D View */}
+      {activeTab === "3d" && (
         <VisualizeTab
           roomWidth={output.roomDimensions.width}
           roomLength={output.roomDimensions.length}

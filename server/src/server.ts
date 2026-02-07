@@ -184,6 +184,265 @@ const FURNITURE_CATALOG = [
     category: "mirror",
     style: "bohemian",
   },
+  // ── Moroccan / Traditional ──
+  {
+    id: "sofa-moroccan-01",
+    name: "Marrakech Low Sofa Bench",
+    description: "Traditional Moroccan low seating bench with carved cedar wood frame and embroidered cushions. Authentic riad style.",
+    price: 1150,
+    currency: "EUR",
+    width: 200,
+    depth: 70,
+    height: 55,
+    imageUrl: "https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/canapes/",
+    retailer: "Maisons du Monde",
+    category: "sofa",
+    style: "moroccan",
+  },
+  {
+    id: "table-moroccan-01",
+    name: "Fez Brass Tray Table",
+    description: "Hand-engraved brass tray table on folding wooden stand. Traditional Moroccan tea table.",
+    price: 289,
+    currency: "EUR",
+    width: 60,
+    depth: 60,
+    height: 50,
+    imageUrl: "https://images.unsplash.com/photo-1590422749897-47726d39daff?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/tables/",
+    retailer: "Maisons du Monde",
+    category: "table",
+    style: "moroccan",
+  },
+  {
+    id: "pouf-moroccan-01",
+    name: "Leather Pouf Ottoman — Tan",
+    description: "Hand-stitched Moroccan leather pouf with embroidered geometric patterns. Unstuffed — fill with textiles.",
+    price: 89,
+    currency: "EUR",
+    width: 55,
+    depth: 55,
+    height: 35,
+    imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/poufs/",
+    retailer: "Maisons du Monde",
+    category: "armchair",
+    style: "moroccan",
+  },
+  {
+    id: "pouf-moroccan-02",
+    name: "Leather Pouf Ottoman — White",
+    description: "White hand-stitched Moroccan leather pouf with traditional star pattern. Perfect accent seating.",
+    price: 95,
+    currency: "EUR",
+    width: 55,
+    depth: 55,
+    height: 35,
+    imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/poufs/",
+    retailer: "Maisons du Monde",
+    category: "armchair",
+    style: "moroccan",
+  },
+  {
+    id: "lamp-moroccan-01",
+    name: "Moroccan Brass Lantern Floor Lamp",
+    description: "Pierced brass lantern floor lamp casting intricate shadow patterns. Warm ambient lighting for traditional spaces.",
+    price: 219,
+    currency: "EUR",
+    width: 30,
+    depth: 30,
+    height: 150,
+    imageUrl: "https://images.unsplash.com/photo-1507473885765-e6ed057ab6fe?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/lampadaires/",
+    retailer: "Maisons du Monde",
+    category: "lamp",
+    style: "moroccan",
+  },
+  {
+    id: "rug-moroccan-01",
+    name: "Beni Ourain Wool Rug 200×300",
+    description: "Authentic hand-knotted Moroccan Beni Ourain rug in cream with black geometric diamond pattern.",
+    price: 799,
+    currency: "EUR",
+    width: 200,
+    depth: 300,
+    height: 3,
+    imageUrl: "https://images.unsplash.com/photo-1600166898405-da9535204843?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/tapis/",
+    retailer: "Maisons du Monde",
+    category: "rug",
+    style: "moroccan",
+  },
+  {
+    id: "rug-moroccan-02",
+    name: "Azilal Colorful Berber Rug 170×240",
+    description: "Vibrant hand-woven Moroccan Azilal rug with colorful abstract symbols on cream background.",
+    price: 650,
+    currency: "EUR",
+    width: 170,
+    depth: 240,
+    height: 3,
+    imageUrl: "https://images.unsplash.com/photo-1600166898405-da9535204843?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/tapis/",
+    retailer: "Maisons du Monde",
+    category: "rug",
+    style: "moroccan",
+  },
+  {
+    id: "shelf-moroccan-01",
+    name: "Carved Cedar Wall Shelf",
+    description: "Hand-carved cedar wood wall shelf with traditional Moroccan geometric moucharabieh pattern.",
+    price: 199,
+    currency: "EUR",
+    width: 100,
+    depth: 20,
+    height: 60,
+    imageUrl: "https://images.unsplash.com/photo-1594620302200-9a762244a156?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/etageres/",
+    retailer: "Maisons du Monde",
+    category: "shelf",
+    style: "moroccan",
+  },
+  {
+    id: "mirror-moroccan-01",
+    name: "Zellige Mosaic Frame Mirror",
+    description: "Round mirror with handcrafted zellige mosaic tile frame in turquoise and gold. 80cm diameter.",
+    price: 249,
+    currency: "EUR",
+    width: 80,
+    depth: 5,
+    height: 80,
+    imageUrl: "https://images.unsplash.com/photo-1618220179428-22790b461013?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/miroirs/",
+    retailer: "Maisons du Monde",
+    category: "mirror",
+    style: "moroccan",
+  },
+  {
+    id: "table-moroccan-02",
+    name: "Carved Wood Side Table",
+    description: "Small octagonal side table with intricate hand-carved Moroccan arabesque patterns. Dark walnut finish.",
+    price: 179,
+    currency: "EUR",
+    width: 45,
+    depth: 45,
+    height: 55,
+    imageUrl: "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/tables/",
+    retailer: "Maisons du Monde",
+    category: "table",
+    style: "moroccan",
+  },
+  // ── Minimalist ──
+  {
+    id: "sofa-minimal-01",
+    name: "Muji-Style Linen Sofa",
+    description: "Ultra-clean line sofa in natural linen. Japanese-inspired minimalism with low profile.",
+    price: 780,
+    currency: "EUR",
+    width: 190,
+    depth: 80,
+    height: 65,
+    imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop",
+    buyUrl: "https://www.ikea.com/fr/fr/cat/canapes-fu003/",
+    retailer: "IKEA",
+    category: "sofa",
+    style: "minimal",
+  },
+  {
+    id: "table-minimal-01",
+    name: "Concrete Coffee Table",
+    description: "Raw concrete top coffee table with matte black steel legs. Brutalist minimalism.",
+    price: 399,
+    currency: "EUR",
+    width: 100,
+    depth: 60,
+    height: 40,
+    imageUrl: "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?w=400&h=300&fit=crop",
+    buyUrl: "https://www.habitat.fr/tables/",
+    retailer: "Habitat",
+    category: "table",
+    style: "minimal",
+  },
+  // ── Classic / Traditional ──
+  {
+    id: "sofa-classic-01",
+    name: "Victorian Tufted Velvet Sofa",
+    description: "Deep buttoned velvet sofa in royal blue with carved mahogany legs. Classic elegance.",
+    price: 1890,
+    currency: "EUR",
+    width: 230,
+    depth: 95,
+    height: 90,
+    imageUrl: "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/canapes/",
+    retailer: "Maisons du Monde",
+    category: "sofa",
+    style: "classic",
+  },
+  {
+    id: "table-classic-01",
+    name: "Louis XVI Marble Console Table",
+    description: "Ornate console table with white marble top and gilded carved legs. French classic style.",
+    price: 1290,
+    currency: "EUR",
+    width: 120,
+    depth: 40,
+    height: 85,
+    imageUrl: "https://images.unsplash.com/photo-1611269154421-4e27233ac5c7?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/tables/",
+    retailer: "Maisons du Monde",
+    category: "table",
+    style: "classic",
+  },
+  {
+    id: "lamp-classic-01",
+    name: "Crystal Chandelier Table Lamp",
+    description: "Elegant crystal drops table lamp with brushed gold base. Classic luxury lighting.",
+    price: 189,
+    currency: "EUR",
+    width: 30,
+    depth: 30,
+    height: 60,
+    imageUrl: "https://images.unsplash.com/photo-1507473885765-e6ed057ab6fe?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/lampadaires/",
+    retailer: "Maisons du Monde",
+    category: "lamp",
+    style: "classic",
+  },
+  // ── Industrial ──
+  {
+    id: "shelf-indus-01",
+    name: "Pipe & Wood Industrial Shelf",
+    description: "Black iron pipe frame with reclaimed wood shelves. 5 tiers. Raw industrial charm.",
+    price: 329,
+    currency: "EUR",
+    width: 100,
+    depth: 30,
+    height: 180,
+    imageUrl: "https://images.unsplash.com/photo-1594620302200-9a762244a156?w=400&h=300&fit=crop",
+    buyUrl: "https://www.maisonsdumonde.com/FR/fr/c/etageres/",
+    retailer: "Maisons du Monde",
+    category: "shelf",
+    style: "industrial",
+  },
+  {
+    id: "chair-indus-01",
+    name: "Tolix Metal Dining Chair (set of 2)",
+    description: "Iconic powder-coated steel stacking chairs in matte black. Industrial bistro classic.",
+    price: 189,
+    currency: "EUR",
+    width: 44,
+    depth: 44,
+    height: 85,
+    imageUrl: "https://images.unsplash.com/photo-1503602642458-232111445657?w=400&h=300&fit=crop",
+    buyUrl: "https://www.habitat.fr/chaises/",
+    retailer: "Habitat",
+    category: "chair",
+    style: "industrial",
+  },
 ];
 
 // ─── Mock Paint Catalog ──────────────────────────────────────────────────────
@@ -301,9 +560,120 @@ const PAINT_CATALOG = [
     buyUrl: "https://www.leroymerlin.fr/produits/peinture/",
     retailer: "Leroy Merlin",
   },
+  // ── Moroccan / Traditional colors ──
+  {
+    id: "paint-spicered-01",
+    name: "Spice Market Red",
+    description: "Deep warm red with earthy undertones. Traditional Moroccan riad color. Rich and enveloping.",
+    price: 56,
+    currency: "EUR",
+    color: "Spice Red",
+    colorHex: "#8B2500",
+    finish: "Matte",
+    coverage: "10m²/L",
+    imageUrl: "https://images.unsplash.com/photo-1525909002-1b05e0c869d8?w=400&h=300&fit=crop",
+    buyUrl: "https://www.leroymerlin.fr/produits/peinture/",
+    retailer: "Leroy Merlin",
+  },
+  {
+    id: "paint-saffron-01",
+    name: "Saffron Gold",
+    description: "Warm saffron yellow-gold. Brings sunlit warmth of Moroccan courtyards to any room.",
+    price: 53,
+    currency: "EUR",
+    color: "Saffron Gold",
+    colorHex: "#D4A017",
+    finish: "Eggshell",
+    coverage: "11m²/L",
+    imageUrl: "https://images.unsplash.com/photo-1525909002-1b05e0c869d8?w=400&h=300&fit=crop",
+    buyUrl: "https://www.castorama.fr/peinture/",
+    retailer: "Castorama",
+  },
+  {
+    id: "paint-turquoise-01",
+    name: "Majorelle Blue",
+    description: "Vibrant cobalt-turquoise inspired by Yves Saint Laurent's Majorelle Garden in Marrakech.",
+    price: 62,
+    currency: "EUR",
+    color: "Majorelle Blue",
+    colorHex: "#6050DC",
+    finish: "Satin",
+    coverage: "9m²/L",
+    imageUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=300&fit=crop",
+    buyUrl: "https://www.leroymerlin.fr/produits/peinture/",
+    retailer: "Leroy Merlin",
+  },
+  {
+    id: "paint-tadelakt-01",
+    name: "Tadelakt Sand",
+    description: "Warm sandy beige with ochre undertones. Inspired by traditional Moroccan tadelakt plaster walls.",
+    price: 48,
+    currency: "EUR",
+    color: "Sand",
+    colorHex: "#D2B48C",
+    finish: "Matte",
+    coverage: "12m²/L",
+    imageUrl: "https://images.unsplash.com/photo-1562184552-997c461abbe6?w=400&h=300&fit=crop",
+    buyUrl: "https://www.leroymerlin.fr/produits/peinture/",
+    retailer: "Leroy Merlin",
+  },
+  {
+    id: "paint-emerald-01",
+    name: "Emerald Jewel",
+    description: "Deep emerald green. Luxurious jewel tone perfect for accent walls and traditional interiors.",
+    price: 58,
+    currency: "EUR",
+    color: "Emerald Green",
+    colorHex: "#046307",
+    finish: "Satin",
+    coverage: "10m²/L",
+    imageUrl: "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=400&h=300&fit=crop",
+    buyUrl: "https://www.castorama.fr/peinture/",
+    retailer: "Castorama",
+  },
+  {
+    id: "paint-burgundy-01",
+    name: "Royal Burgundy",
+    description: "Deep wine-red burgundy. Classic, refined, perfect for cozy traditional and Moroccan spaces.",
+    price: 55,
+    currency: "EUR",
+    color: "Burgundy",
+    colorHex: "#722F37",
+    finish: "Eggshell",
+    coverage: "10m²/L",
+    imageUrl: "https://images.unsplash.com/photo-1525909002-1b05e0c869d8?w=400&h=300&fit=crop",
+    buyUrl: "https://www.leroymerlin.fr/produits/peinture/",
+    retailer: "Leroy Merlin",
+  },
+  {
+    id: "paint-ochre-01",
+    name: "Moroccan Ochre",
+    description: "Warm burnt ochre. Earthy and sun-baked, reminiscent of Marrakech medina walls.",
+    price: 50,
+    currency: "EUR",
+    color: "Ochre",
+    colorHex: "#CC7722",
+    finish: "Matte",
+    coverage: "11m²/L",
+    imageUrl: "https://images.unsplash.com/photo-1525909002-1b05e0c869d8?w=400&h=300&fit=crop",
+    buyUrl: "https://www.castorama.fr/peinture/",
+    retailer: "Castorama",
+  },
 ];
 
 // ─── Search Helpers ──────────────────────────────────────────────────────────
+
+// Style aliases — so "moroccan" also matches "bohemian", "traditional" also matches "classic", etc.
+const STYLE_ALIASES: Record<string, string[]> = {
+  moroccan: ["moroccan", "bohemian", "traditional", "riad", "marrakech"],
+  bohemian: ["bohemian", "moroccan", "boho"],
+  traditional: ["traditional", "classic", "moroccan"],
+  classic: ["classic", "traditional"],
+  scandinavian: ["scandinavian", "nordic", "scandi"],
+  modern: ["modern", "contemporary", "minimal"],
+  minimal: ["minimal", "modern", "contemporary", "minimalist"],
+  industrial: ["industrial", "loft", "factory"],
+};
 
 function searchFurniture(params: {
   query: string;
@@ -322,13 +692,19 @@ function searchFurniture(params: {
     );
   }
 
+  // Style filter with aliases
   if (params.style) {
-    const style = params.style.toLowerCase();
-    results = results.filter(
+    const styleKey = params.style.toLowerCase();
+    const aliases = STYLE_ALIASES[styleKey] || [styleKey];
+    const styleFiltered = results.filter(
       (f) =>
-        f.style.toLowerCase().includes(style) ||
-        f.description.toLowerCase().includes(style),
+        aliases.some((a) => f.style.toLowerCase().includes(a)) ||
+        aliases.some((a) => f.description.toLowerCase().includes(a)),
     );
+    // Only apply style filter if it returns enough results
+    if (styleFiltered.length >= 2) {
+      results = styleFiltered;
+    }
   }
 
   if (params.maxWidth) results = results.filter((f) => f.width <= params.maxWidth!);
@@ -338,11 +714,28 @@ function searchFurniture(params: {
 
   if (params.query) {
     const q = params.query.toLowerCase();
-    const keywords = q.split(/\s+/);
-    results = results.filter((f) => {
-      const searchable = `${f.name} ${f.description} ${f.category} ${f.style}`.toLowerCase();
-      return keywords.some((kw) => searchable.includes(kw));
-    });
+    const keywords = q.split(/\s+/).filter((kw) => kw.length > 2);
+    // Expand query keywords with style aliases
+    const expandedKeywords = [...keywords];
+    for (const kw of keywords) {
+      const aliases = STYLE_ALIASES[kw];
+      if (aliases) expandedKeywords.push(...aliases);
+    }
+    const uniqueKeywords = [...new Set(expandedKeywords)];
+
+    if (uniqueKeywords.length > 0) {
+      const scored = results.map((f) => {
+        const searchable = `${f.name} ${f.description} ${f.category} ${f.style}`.toLowerCase();
+        const score = uniqueKeywords.filter((kw) => searchable.includes(kw)).length;
+        return { item: f, score };
+      });
+      // Keep items that match at least one keyword, sorted by relevance
+      const matched = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
+      if (matched.length >= 2) {
+        results = matched.map((s) => s.item);
+      }
+      // If too few matches, just return all results (don't over-filter)
+    }
   }
 
   return results;
@@ -359,17 +752,24 @@ function searchPaint(params: {
 
   if (params.color) {
     const c = params.color.toLowerCase();
-    results = results.filter(
+    const colorFiltered = results.filter(
       (p) =>
         p.color.toLowerCase().includes(c) ||
-        p.name.toLowerCase().includes(c),
+        p.name.toLowerCase().includes(c) ||
+        p.description.toLowerCase().includes(c),
     );
+    if (colorFiltered.length >= 1) {
+      results = colorFiltered;
+    }
   }
 
   if (params.finish) {
-    results = results.filter(
+    const finishFiltered = results.filter(
       (p) => p.finish.toLowerCase() === params.finish!.toLowerCase(),
     );
+    if (finishFiltered.length >= 1) {
+      results = finishFiltered;
+    }
   }
 
   if (params.brand) {
@@ -380,11 +780,26 @@ function searchPaint(params: {
 
   if (params.query) {
     const q = params.query.toLowerCase();
-    const keywords = q.split(/\s+/);
-    results = results.filter((p) => {
-      const searchable = `${p.name} ${p.description} ${p.color} ${p.finish}`.toLowerCase();
-      return keywords.some((kw) => searchable.includes(kw));
-    });
+    const keywords = q.split(/\s+/).filter((kw) => kw.length > 2);
+    // Expand with style aliases
+    const expandedKeywords = [...keywords];
+    for (const kw of keywords) {
+      const aliases = STYLE_ALIASES[kw];
+      if (aliases) expandedKeywords.push(...aliases);
+    }
+    const uniqueKeywords = [...new Set(expandedKeywords)];
+
+    if (uniqueKeywords.length > 0) {
+      const scored = results.map((p) => {
+        const searchable = `${p.name} ${p.description} ${p.color} ${p.finish}`.toLowerCase();
+        const score = uniqueKeywords.filter((kw) => searchable.includes(kw)).length;
+        return { item: p, score };
+      });
+      const matched = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
+      if (matched.length >= 2) {
+        results = matched.map((s) => s.item);
+      }
+    }
   }
 
   return results;
@@ -470,11 +885,27 @@ const server = new McpServer(
           paint = [...PAINT_CATALOG];
         }
 
+        // ── Auto-generate AI room image ──
+        const topPaint = paint[0];
+        const furnitureNames = furniture.slice(0, 6).map((f) => f.name);
+        const imagePrompt = [
+          `Photorealistic interior design render of a ${style} ${roomType || "room"}`,
+          `${roomWidth / 100}m wide × ${roomLength / 100}m long × ${roomHeight / 100}m high`,
+          topPaint ? `with ${topPaint.color} walls` : "with white walls",
+          furnitureNames.length > 0 ? `furnished with: ${furnitureNames.join(", ")}` : "",
+          preferences ? preferences : "",
+          `professional interior photography, wide angle lens, natural daylight`,
+          `8k, architectural visualization, warm ambient lighting`,
+        ].filter(Boolean).join(", ");
+        const encodedPrompt = encodeURIComponent(imagePrompt);
+        const renderImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=768&seed=${Date.now()}&nologo=true`;
+
         const structuredContent = {
           roomDimensions: { width: roomWidth, length: roomLength, height: roomHeight },
           style,
           budget: budget || null,
           roomType: roomType || null,
+          renderImageUrl,
           furnitureCount: furniture.length,
           paintCount: paint.length,
           furniture: furniture.map((f) => ({
