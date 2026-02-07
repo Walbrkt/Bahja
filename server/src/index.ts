@@ -12,6 +12,49 @@ const app = express() as Express & { vite: ViteDevServer };
 
 app.use(express.json());
 
+// ── Image proxy endpoint ─────────────────────────────────────────────────────
+// Proxies images from fal.ai (and other allowed sources) through our server
+// so the widget iframe can load them without CSP blocking.
+const ALLOWED_IMAGE_HOSTS = [
+  "v3b.fal.media",
+  "fal.media",
+  "storage.googleapis.com",
+  "images.unsplash.com",
+];
+
+app.get("/api/image-proxy", async (req, res) => {
+  const imageUrl = req.query.url as string;
+  if (!imageUrl) {
+    res.status(400).send("Missing url parameter");
+    return;
+  }
+
+  try {
+    const parsed = new URL(imageUrl);
+    if (!ALLOWED_IMAGE_HOSTS.some((h) => parsed.hostname === h || parsed.hostname.endsWith(`.${h}`))) {
+      res.status(403).send("Domain not allowed");
+      return;
+    }
+
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      res.status(response.status).send("Upstream image fetch failed");
+      return;
+    }
+
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400"); // Cache 24h
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.send(buffer);
+  } catch (error) {
+    console.error("[image-proxy] Error:", error);
+    res.status(500).send("Image proxy error");
+  }
+});
+
 app.use(mcp(server));
 
 const env = process.env.NODE_ENV || "development";

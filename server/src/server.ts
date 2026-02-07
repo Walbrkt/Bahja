@@ -56,7 +56,9 @@ async function generateImageWithFal(
 
     if (imageUrl && typeof imageUrl === "string") {
       console.log("[fal.ai] ✅ Image generated successfully:", imageUrl);
-      return { url: imageUrl, isFallback: false };
+      // Wrap through proxy to avoid CSP issues in widget iframe
+      const proxiedUrl = proxyImageUrl(imageUrl);
+      return { url: proxiedUrl, isFallback: false };
     }
 
     console.warn("[fal.ai] No image URL in response. Full result:", JSON.stringify(result).substring(0, 500));
@@ -65,6 +67,23 @@ async function generateImageWithFal(
     console.error("[fal.ai] ❌ Image generation failed:", error?.message || error);
     console.error("[fal.ai] Error details:", JSON.stringify(error?.body || error?.response || {}).substring(0, 500));
     return { url: fallbackUrl, isFallback: true };
+  }
+}
+
+/**
+ * Wrap an external image URL through our server proxy to bypass CSP restrictions.
+ * URLs from fal.media are proxied; other URLs are returned as-is.
+ */
+function proxyImageUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Proxy all external image URLs through our server to bypass CSP restrictions
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  } catch {
+    return url;
   }
 }
 
@@ -1071,8 +1090,8 @@ const server = new McpServer(
           style,
           budget: budget || null,
           roomType: roomType || null,
-          renderImageUrl, // AI-generated via fal.ai (or fallback)
-          fallbackImageUrl: fallbackUrl, // Secondary fallback
+          renderImageUrl, // AI-generated via fal.ai (or fallback), proxied
+          fallbackImageUrl: proxyImageUrl(fallbackUrl), // Secondary fallback, also proxied
           isFallbackImage: isFallback, // Whether fal.ai was unavailable
           furnitureCount: furniture.length,
           paintCount: paint.length,
@@ -1104,7 +1123,7 @@ const server = new McpServer(
             width: f.width,
             depth: f.depth,
             height: f.height,
-            imageUrl: f.imageUrl,
+            imageUrl: proxyImageUrl(f.imageUrl),
             buyUrl: f.buyUrl,
             retailer: f.retailer,
             category: f.category,
@@ -1120,7 +1139,7 @@ const server = new McpServer(
             colorHex: p.colorHex,
             finish: p.finish,
             coverage: p.coverage,
-            imageUrl: p.imageUrl,
+            imageUrl: proxyImageUrl(p.imageUrl),
             buyUrl: p.buyUrl,
             retailer: p.retailer,
           })),
@@ -1180,7 +1199,7 @@ const server = new McpServer(
             width: f.width,
             depth: f.depth,
             height: f.height,
-            imageUrl: f.imageUrl,
+            imageUrl: proxyImageUrl(f.imageUrl),
             buyUrl: f.buyUrl,
             retailer: f.retailer,
             category: f.category,
@@ -1229,7 +1248,7 @@ const server = new McpServer(
             colorHex: p.colorHex,
             finish: p.finish,
             coverage: p.coverage,
-            imageUrl: p.imageUrl,
+            imageUrl: proxyImageUrl(p.imageUrl),
             buyUrl: p.buyUrl,
             retailer: p.retailer,
           })),
