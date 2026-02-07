@@ -23,8 +23,7 @@ async function uploadBufferToFal(buffer: Buffer, mimeType: string, falApiKey: st
   const fileName = `room-upload-${Date.now()}.${ext}`;
   
   const formData = new FormData();
-  const uint8 = new Uint8Array(buffer);
-  const blob = new Blob([uint8], { type: mimeType });
+  const blob = new Blob([buffer], { type: mimeType });
   formData.append('file_upload', blob, fileName);
   
   const response = await fetch(`https://api.fal.ai/v1/serverless/files/file/local/uploads/${fileName}`, {

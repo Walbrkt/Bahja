@@ -16,6 +16,57 @@ interface FalImageEditResponse {
 }
 
 /**
+ * Upload a data URI to fal.ai storage and return a public URL
+ */
+async function uploadDataUriToFal(dataUri: string, falApiKey: string): Promise<string> {
+  console.log(`📤 Uploading data URI to fal.ai storage (${dataUri.length} chars)...`);
+  
+  // Convert data URI to buffer
+  const matches = dataUri.match(/^data:([^;]+);base64,(.+)$/);
+  if (!matches) {
+    throw new Error("Invalid data URI format");
+  }
+  
+  const mimeType = matches[1];
+  const base64Data = matches[2];
+  const buffer = Buffer.from(base64Data, 'base64');
+  const ext = mimeType.includes('png') ? 'png' : 'jpg';
+  const fileName = `room-upload-${Date.now()}.${ext}`;
+  
+  // Use fal.ai REST upload endpoint
+  const formData = new FormData();
+  const blob = new Blob([buffer], { type: mimeType });
+  formData.append('file_upload', blob, fileName);
+  
+  const response = await fetch(`https://api.fal.ai/v1/serverless/files/file/local/uploads/${fileName}`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Key ${falApiKey}`,
+    },
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    console.error(`❌ fal.ai upload failed (${response.status}): ${error}`);
+    throw new Error(`fal.ai storage upload failed: ${error}`);
+  }
+  
+  const result = await response.json();
+  console.log(`📋 fal.ai upload response:`, JSON.stringify(result));
+  
+  // The upload returns the file URL
+  const uploadedUrl = result.url || result.file_url || result.access_url;
+  
+  if (!uploadedUrl) {
+    throw new Error(`fal.ai upload: no URL in response: ${JSON.stringify(result)}`);
+  }
+  
+  console.log(`✅ Uploaded to fal.ai storage: ${uploadedUrl}`);
+  return uploadedUrl;
+}
+
+/**
  * Upload a buffer to fal.ai storage and return a public URL
  */
 async function uploadBufferToFal(buffer: Buffer, mimeType: string, falApiKey: string): Promise<string> {
@@ -23,8 +74,7 @@ async function uploadBufferToFal(buffer: Buffer, mimeType: string, falApiKey: st
   const fileName = `room-upload-${Date.now()}.${ext}`;
   
   const formData = new FormData();
-  const uint8 = new Uint8Array(buffer);
-  const blob = new Blob([uint8], { type: mimeType });
+  const blob = new Blob([buffer], { type: mimeType });
   formData.append('file_upload', blob, fileName);
   
   const response = await fetch(`https://api.fal.ai/v1/serverless/files/file/local/uploads/${fileName}`, {

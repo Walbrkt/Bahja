@@ -54,7 +54,7 @@ const server = new McpServer(
           return {
             content: [{
               type: "text" as const,
-              text: "I need a room image to get started. Please share or upload a room photo, and I'll pass the image URL to the interior-architect tool to show you IKEA furniture options.",
+              text: "Please upload your room image or provide an image URL. Then I'll show you furniture options to add.",
             }],
             _meta: {
               mode: "needImage",
@@ -63,8 +63,6 @@ const server = new McpServer(
         }
 
         console.log("✅ Room image received:", imageUrl.substring(0, 100) + "...");
-        console.log("   Type:", imageUrl.startsWith('data:') ? 'DATA URI' : imageUrl.startsWith('http') ? 'URL' : 'UNKNOWN');
-        console.log("   Length:", imageUrl.length, "chars");
 
         // PHASE 2: Show catalogue (have imageUrl, no product selected yet)
         if (!selectedProductId) {
