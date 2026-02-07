@@ -1,4 +1,5 @@
 import { generateHelpers } from "skybridge/web";
-import type { AppType } from "../../server/src/server";
 
-export const { useToolInfo } = generateHelpers<AppType>();
+// NOTE: The current server is not using method-chaining registration, so
+// tool inference resolves to `never`. Use `any` to unblock usage.
+export const { useToolInfo, useCallTool } = generateHelpers<any>();
