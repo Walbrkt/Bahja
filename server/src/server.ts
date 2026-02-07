@@ -1,9 +1,6 @@
 import { McpServer } from "skybridge/server";
 import { z } from "zod";
 import { fal } from "@fal-ai/client";
-import fs from "node:fs";
-import path from "node:path";
-import crypto from "node:crypto";
 
 // ─── fal.ai configuration ───────────────────────────────────────────────────
 
@@ -14,8 +11,7 @@ fal.config({
 /**
  * Generate an image using fal.ai Recraft V3 model.
  * Recraft V3 is SOTA for prompt adherence and photorealistic interior design.
- * Downloads the image and saves it to the server filesystem for same-origin serving.
- * Returns a same-origin /generated-images/ URL.
+ * Returns the raw fal.ai URL directly — whitelisted in CSP resourceDomains.
  */
 async function generateImageWithFal(
   prompt: string,
@@ -24,7 +20,7 @@ async function generateImageWithFal(
   const falKey = process.env.FAL_KEY;
   if (!falKey) {
     console.warn("[fal.ai] FAL_KEY not set — using fallback image");
-    return { url: proxyImageUrl(fallbackUrl), isFallback: true };
+    return { url: fallbackUrl, isFallback: true };
   }
 
   // Ensure credentials are set (in case env loaded after fal.config)
@@ -55,62 +51,16 @@ async function generateImageWithFal(
 
     if (imageUrl && typeof imageUrl === "string") {
       console.log("[fal.ai] ✅ Image generated:", imageUrl.substring(0, 100));
-
-      // Download the image and save to filesystem for same-origin serving
-      try {
-        const imgResponse = await fetch(imageUrl);
-        if (imgResponse.ok) {
-          const arrayBuffer = await imgResponse.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const contentType = imgResponse.headers.get("content-type") || "image/png";
-          const ext = contentType.includes("webp") ? "webp" : contentType.includes("png") ? "png" : "jpg";
-          const filename = `room-${crypto.randomUUID()}.${ext}`;
-          
-          // Get the generated images directory from global
-          const generatedDir = (globalThis as any).__GENERATED_DIR || "/tmp/generated-images";
-          if (!fs.existsSync(generatedDir)) {
-            fs.mkdirSync(generatedDir, { recursive: true });
-          }
-          
-          const filepath = path.join(generatedDir, filename);
-          fs.writeFileSync(filepath, buffer);
-          
-          const sameOriginUrl = `/generated-images/${filename}`;
-          console.log("[fal.ai] ✅ Saved to filesystem:", sameOriginUrl, `(${Math.round(buffer.length / 1024)} KB)`);
-          return { url: sameOriginUrl, isFallback: false };
-        }
-      } catch (dlError: any) {
-        console.warn("[fal.ai] Could not download/save image:", dlError.message);
-      }
-
-      // Fallback: use proxy URL
-      const proxiedUrl = proxyImageUrl(imageUrl);
-      return { url: proxiedUrl, isFallback: false };
+      // Return the raw fal.ai URL — it's whitelisted in CSP resourceDomains
+      return { url: imageUrl, isFallback: false };
     }
 
     console.warn("[fal.ai] No image URL in response. Result:", JSON.stringify(result).substring(0, 500));
-    return { url: proxyImageUrl(fallbackUrl), isFallback: true };
+    return { url: fallbackUrl, isFallback: true };
   } catch (error: any) {
     console.error("[fal.ai] ❌ Generation failed:", error?.message || error);
     console.error("[fal.ai] Details:", JSON.stringify(error?.body || error?.response || {}).substring(0, 500));
-    return { url: proxyImageUrl(fallbackUrl), isFallback: true };
-  }
-}
-
-/**
- * Wrap an external image URL through our server proxy to bypass CSP restrictions.
- * URLs from fal.media are proxied; other URLs are returned as-is.
- */
-function proxyImageUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    // Proxy all external image URLs through our server to bypass CSP restrictions
-    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
-      return `/api/image-proxy?url=${encodeURIComponent(url)}`;
-    }
-    return url;
-  } catch {
-    return url;
+    return { url: fallbackUrl, isFallback: true };
   }
 }
 
@@ -1116,6 +1066,8 @@ const server = new McpServer(
           style,
           budget: budget || null,
           roomType: roomType || null,
+          renderImageUrl, // AI-generated via fal.ai — absolute URL
+          fallbackImageUrl: fallbackUrl, // Unsplash fallback — absolute URL
           isFallbackImage: isFallback, // Whether fal.ai was unavailable
           furnitureCount: furniture.length,
           paintCount: paint.length,
@@ -1138,8 +1090,8 @@ const server = new McpServer(
         };
 
         const _meta = {
-          renderImageUrl, // AI-generated via fal.ai — same-origin URL
-          fallbackImageUrl: proxyImageUrl(fallbackUrl), // Secondary fallback, proxied
+          renderImageUrl, // AI-generated via fal.ai — absolute URL
+          fallbackImageUrl: fallbackUrl, // Unsplash fallback — absolute URL
           furniture: furniture.map((f) => ({
             id: f.id,
             name: f.name,
@@ -1149,7 +1101,7 @@ const server = new McpServer(
             width: f.width,
             depth: f.depth,
             height: f.height,
-            imageUrl: proxyImageUrl(f.imageUrl),
+            imageUrl: f.imageUrl, // Raw Unsplash URL — whitelisted in CSP
             buyUrl: f.buyUrl,
             retailer: f.retailer,
             category: f.category,
@@ -1165,7 +1117,7 @@ const server = new McpServer(
             colorHex: p.colorHex,
             finish: p.finish,
             coverage: p.coverage,
-            imageUrl: proxyImageUrl(p.imageUrl),
+            imageUrl: p.imageUrl, // Raw Unsplash URL — whitelisted in CSP
             buyUrl: p.buyUrl,
             retailer: p.retailer,
           })),
@@ -1225,7 +1177,7 @@ const server = new McpServer(
             width: f.width,
             depth: f.depth,
             height: f.height,
-            imageUrl: proxyImageUrl(f.imageUrl),
+            imageUrl: f.imageUrl, // Raw Unsplash URL — whitelisted in CSP
             buyUrl: f.buyUrl,
             retailer: f.retailer,
             category: f.category,
@@ -1274,7 +1226,7 @@ const server = new McpServer(
             colorHex: p.colorHex,
             finish: p.finish,
             coverage: p.coverage,
-            imageUrl: proxyImageUrl(p.imageUrl),
+            imageUrl: p.imageUrl, // Raw Unsplash URL — whitelisted in CSP
             buyUrl: p.buyUrl,
             retailer: p.retailer,
           })),

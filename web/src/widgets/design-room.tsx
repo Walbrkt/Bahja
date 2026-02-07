@@ -607,12 +607,13 @@ function DesignRoom() {
     paint: PaintItem[];
   };
 
-  // Set hero image source from _meta when output loads
+  // Set hero image source from structuredContent (primary) or _meta (fallback)
   useEffect(() => {
-    if (meta?.renderImageUrl && !heroSrc) {
-      setHeroSrc(meta.renderImageUrl);
+    const url = (output as any)?.renderImageUrl || meta?.renderImageUrl;
+    if (url && !heroSrc) {
+      setHeroSrc(url);
     }
-  }, [meta?.renderImageUrl]);
+  }, [(output as any)?.renderImageUrl, meta?.renderImageUrl]);
 
   const isFullscreen = displayMode === "fullscreen";
 
@@ -658,8 +659,9 @@ function DesignRoom() {
             }}
             onError={() => {
               // Try fallback if main image fails
-              if (meta?.fallbackImageUrl && heroSrc !== meta.fallbackImageUrl) {
-                setHeroSrc(meta.fallbackImageUrl);
+              const fallback = (output as any)?.fallbackImageUrl || meta?.fallbackImageUrl;
+              if (fallback && heroSrc !== fallback) {
+                setHeroSrc(fallback);
               } else {
                 setImageError(true);
                 setImageLoaded(true);
@@ -669,7 +671,7 @@ function DesignRoom() {
           {imageLoaded && !imageError && (
             <div className="rc-hero__caption">
               <span className="rc-hero__badge">
-                {output.isFallbackImage || heroSrc === meta?.fallbackImageUrl
+                {output.isFallbackImage || heroSrc === ((output as any)?.fallbackImageUrl || meta?.fallbackImageUrl)
                   ? "🖼️ Preview" 
                   : "✨ AI Generated · fal.ai"}
               </span>
