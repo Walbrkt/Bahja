@@ -9,7 +9,8 @@ fal.config({
 });
 
 /**
- * Generate an image using fal.ai Flux 2 Flex model.
+ * Generate an image using fal.ai Recraft V3 model.
+ * Recraft V3 is SOTA for prompt adherence and photorealistic interior design.
  * Returns the generated image URL or a fallback URL on failure.
  */
 async function generateImageWithFal(
@@ -19,7 +20,6 @@ async function generateImageWithFal(
   const falKey = process.env.FAL_KEY;
   if (!falKey) {
     console.warn("[fal.ai] FAL_KEY not set — using fallback image");
-    console.warn("[fal.ai] Available env keys:", Object.keys(process.env).filter(k => k.includes("FAL")).join(", ") || "none");
     return { url: fallbackUrl, isFallback: true };
   }
 
@@ -27,18 +27,14 @@ async function generateImageWithFal(
   fal.config({ credentials: falKey });
 
   try {
-    const seed = Math.floor(Math.random() * 999999);
-    console.log("[fal.ai] Generating image (seed:", seed, ")");
-    console.log("[fal.ai] Prompt:", prompt.substring(0, 200) + "...");
+    console.log("[fal.ai] Generating image with Recraft V3...");
+    console.log("[fal.ai] Prompt:", prompt.substring(0, 300));
     
-    const result = await fal.subscribe("fal-ai/flux-2-flex", {
+    const result = await fal.subscribe("fal-ai/recraft/v3/text-to-image", {
       input: {
         prompt,
         image_size: { width: 1024, height: 768 },
-        enable_prompt_expansion: true,
-        num_inference_steps: 28,
-        guidance_scale: 3.5,
-        seed,
+        style: "realistic_image/natural_light",
       },
       logs: true,
       onQueueUpdate: (update) => {
@@ -90,21 +86,21 @@ function proxyImageUrl(url: string): string {
 // ─── Style-specific prompt enrichment ────────────────────────────────────────
 
 const STYLE_VISUAL_PROMPTS: Record<string, string> = {
-  moroccan: "traditional Moroccan riad interior, ornate zellige tile mosaics on walls, carved cedar wood arches and doorframes, pierced brass lanterns casting intricate shadow patterns, colorful handwoven Berber rugs on terracotta floor, tadelakt plaster walls in warm earthy tones, low cushioned seating with embroidered fabrics, geometric Islamic patterns, mosaic fountain, warm golden ambient light, rich jewel tones",
-  bohemian: "bohemian eclectic interior, layered textiles and macramé wall hangings, rattan and wicker furniture, hanging plants and greenery everywhere, vintage Persian rugs, warm earthy tones mixed with jewel colors, string lights, floor cushions, eclectic art collection, relaxed cozy atmosphere",
-  scandinavian: "Scandinavian minimalist interior, clean white walls, light oak wood floors, simple elegant furniture with organic shapes, large windows with natural light flooding in, hygge cozy atmosphere, wool throws and sheepskin rugs, muted neutral palette with soft pastels, potted plants, functional simplicity",
-  modern: "contemporary modern interior design, clean geometric lines, sleek minimalist furniture, neutral palette with bold accent colors, large statement art piece on wall, polished concrete or hardwood floors, recessed lighting, open plan layout, glass and metal accents, designer furniture pieces",
-  industrial: "industrial loft interior, exposed brick walls, raw steel beams and pipes on ceiling, polished concrete floor, vintage Edison bulb pendant lights, reclaimed wood furniture, leather seating, metal shelving units, large factory-style windows, urban warehouse aesthetic",
-  classic: "classic European interior design, ornate crown moldings and wainscoting, elegant chandelier, rich wood paneling, traditional wingback chairs, Persian silk rug, marble fireplace mantel, oil paintings in gilded frames, damask upholstery, refined sophisticated atmosphere",
-  minimal: "ultra-minimal interior, pure white walls, single statement furniture piece, vast open space, zen-like calm, concrete and natural materials, no clutter, architectural light and shadow play, Japanese-inspired simplicity, monochrome palette",
-  french: "elegant French Parisian apartment interior, Haussmann-style with tall ceilings, ornate plaster moldings and ceiling roses, herringbone parquet oak floors, marble fireplace, Louis XVI style furniture, silk curtains, crystal chandelier, gilded mirrors, soft ivory and gold palette, fresh flowers in porcelain vase",
-  japanese: "Japanese wabi-sabi interior, tatami mat flooring, shoji screen sliding doors, low wooden furniture, tokonoma alcove with ikebana arrangement, natural wood and bamboo materials, paper lantern lighting, minimalist zen garden view, earth tones, serene meditative atmosphere",
-  tropical: "tropical resort interior, rattan and bamboo furniture, lush tropical plants, ceiling fan, woven jute rug, white linen curtains billowing, natural wood and stone materials, ocean-inspired colors, open to outdoor terrace, relaxed island luxury atmosphere",
+  moroccan: "Moroccan riad interior with zellige tile mosaics, carved cedar wood arches, pierced brass lanterns, handwoven Berber rugs on terracotta floor, tadelakt plaster walls, low cushioned seating, geometric Islamic patterns, warm golden ambient light, jewel tones",
+  bohemian: "Bohemian eclectic interior with macramé wall hangings, rattan furniture, hanging plants, vintage Persian rugs, string lights, floor cushions, earthy tones with jewel colors",
+  scandinavian: "Scandinavian minimalist interior with clean white walls, light oak wood floors, organic furniture shapes, large windows, wool throws, muted neutral palette, potted plants",
+  modern: "Contemporary modern interior with clean geometric lines, sleek furniture, neutral palette with bold accents, statement art, polished floors, recessed lighting, glass and metal accents",
+  industrial: "Industrial loft interior with exposed brick walls, steel beams, polished concrete floor, Edison bulb pendant lights, reclaimed wood furniture, leather seating, factory windows",
+  classic: "Classic European interior with ornate crown moldings, elegant chandelier, wood paneling, wingback chairs, Persian silk rug, marble fireplace, oil paintings in gilded frames",
+  minimal: "Ultra-minimal interior with pure white walls, single statement furniture, vast open space, concrete and natural materials, architectural light and shadow, monochrome palette",
+  french: "French Parisian apartment with Haussmann tall ceilings, ornate plaster moldings, herringbone parquet oak floors, marble fireplace, Louis XVI furniture, crystal chandelier, gilded mirrors",
+  japanese: "Japanese wabi-sabi interior with tatami mat floor, shoji screen doors, low wooden furniture, tokonoma alcove, natural wood and bamboo, paper lantern lighting, zen garden view",
+  tropical: "Tropical resort interior with rattan and bamboo furniture, lush tropical plants, ceiling fan, woven jute rug, white linen curtains, natural wood and stone, ocean-inspired colors",
 };
 
 /**
- * Build a rich, style-aware prompt for AI image generation.
- * Uses structured description for maximum prompt adherence.
+ * Build a concise, style-first prompt for AI image generation.
+ * Front-loads the style description for maximum prompt adherence.
  */
 function buildImagePrompt(params: {
   style: string;
@@ -117,44 +113,43 @@ function buildImagePrompt(params: {
   furnitureNames?: string[];
   userPrompt?: string | null;
 }): string {
-  const { style, roomType, roomWidth, roomLength, roomHeight, paintColor, paintHex, furnitureNames, userPrompt } = params;
+  const { style, roomType, paintColor, paintHex, furnitureNames, userPrompt } = params;
   
-  // Get style-specific visual description
+  // Get style-specific visual description — THIS IS THE MOST IMPORTANT PART
   const styleKey = style.toLowerCase().replace(/[^a-z]/g, "");
   const styleVisuals = STYLE_VISUAL_PROMPTS[styleKey] 
     || STYLE_VISUAL_PROMPTS[Object.keys(STYLE_VISUAL_PROMPTS).find(k => styleKey.includes(k)) || ""] 
-    || "elegant interior design";
+    || `${style} interior design`;
 
-  // Build a detailed structured prompt
+  // Build prompt with style FIRST (most important for adherence)
   const parts: string[] = [];
   
-  // Core scene
-  parts.push(`Photorealistic interior design photograph of a stunning ${style} ${roomType || "living room"}`);
-  parts.push(`Room dimensions: ${roomWidth / 100}m wide × ${roomLength / 100}m long with ${roomHeight / 100}m high ceilings`);
-  
-  // Style visuals (this is the most important part)
+  // 1. Style description first — front-loaded for maximum adherence
   parts.push(styleVisuals);
   
-  // Wall color with hex code for precise color matching
+  // 2. Room type
+  parts.push(`${roomType || "living room"}`);
+  
+  // 3. Wall color
   if (paintColor && paintHex) {
-    parts.push(`walls painted in color ${paintHex}, ${paintColor} tone`);
+    parts.push(`walls painted ${paintColor} (${paintHex})`);
   } else if (paintColor) {
-    parts.push(`walls painted in ${paintColor}`);
+    parts.push(`${paintColor} walls`);
   }
 
-  // Furniture — describe each piece clearly
+  // 4. Key furniture pieces (max 4 to keep prompt focused)
   if (furnitureNames && furnitureNames.length > 0) {
-    const furnitureDesc = furnitureNames.slice(0, 6).map(name => name).join(", ");
-    parts.push(`The room contains the following furniture pieces prominently visible: ${furnitureDesc}`);
+    const items = furnitureNames.slice(0, 4).join(", ");
+    parts.push(`featuring ${items}`);
   }
 
-  // User's custom prompt
+  // 5. User's custom request
   if (userPrompt) {
     parts.push(userPrompt);
   }
 
-  // Photography quality
-  parts.push("Shot with professional architectural photography, wide angle 24mm lens, natural daylight streaming through windows, soft shadows, high-end interior design magazine quality, ultra detailed, 8K resolution, photorealistic");
+  // 6. Photography quality — keep short
+  parts.push("professional interior design photography, wide angle, natural daylight, photorealistic, high detail");
 
   return parts.join(". ") + ".";
 }

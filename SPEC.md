@@ -78,6 +78,8 @@ Design and furnish rooms through conversation. Target: anyone moving, redecorati
 - **Annotations:** readOnlyHint: true
 
 ## Product Context
-- **APIs:** Furniture/paint search via mock data (hackathon); image generation via Pollinations.ai
-- **Auth:** None required
-- **Constraints:** Hackathon scope — mock data, placeholder images; real API integration planned post-hackathon
+- **APIs:** Furniture/paint search via curated catalog data; AI image generation via **fal.ai Recraft V3** (SOTA prompt adherence, photorealistic)
+- **Partner Technologies:** Alpic/Skybridge (MCP framework), fal.ai (AI image generation), OpenAI/ChatGPT (LLM orchestration)
+- **Auth:** None required (FAL_KEY managed server-side)
+- **Image Proxy:** Server-side proxy at `/api/image-proxy` to bypass CSP restrictions in widget iframes
+- **Constraints:** Hackathon scope — curated catalog, server-side image proxy; real API integration planned post-hackathon
