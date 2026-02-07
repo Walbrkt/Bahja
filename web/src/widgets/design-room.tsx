@@ -455,7 +455,7 @@ function VisualizeTab({
         {isImagePending && (
           <div className="ai-loading">
             <div className="rc-loading__spinner" />
-            <p>🎨 AI is painting your room...</p>
+            <p>🎨 fal.ai is painting your room...</p>
           </div>
         )}
         {generatedImageUrl && !isImagePending && (
@@ -466,7 +466,7 @@ function VisualizeTab({
               className="ai-result__image"
             />
             <div className="ai-result__caption">
-              <span className="ai-result__badge">AI Generated</span>
+              <span className="ai-result__badge">✨ AI Generated · fal.ai</span>
               Custom render with your selections
             </div>
           </div>
@@ -535,7 +535,7 @@ function DesignRoom() {
 
       {/* ── Hero AI Image ── */}
       {output.renderImageUrl && (
-        <div className="rc-hero" data-llm="AI-generated room visualization">
+        <div className="rc-hero" data-llm="AI-generated room visualization powered by fal.ai">
           {!imageLoaded && !imageError && (
             <div className="rc-hero__loading">
               <div className="rc-loading__spinner" />
@@ -547,11 +547,23 @@ function DesignRoom() {
             alt={`AI visualization of ${output.style} ${output.roomType || "room"}`}
             className={`rc-hero__image ${imageLoaded ? "rc-hero__image--visible" : ""}`}
             onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
+            onError={() => {
+              // If fal.ai image fails, try fallback
+              if (output.fallbackImageUrl && !imageError) {
+                setImageError(true);
+                const img = document.querySelector(".rc-hero__image") as HTMLImageElement;
+                if (img) img.src = output.fallbackImageUrl;
+              } else {
+                setImageError(true);
+                setImageLoaded(true);
+              }
+            }}
           />
           {imageLoaded && (
             <div className="rc-hero__caption">
-              <span className="rc-hero__badge">✨ AI Generated</span>
+              <span className="rc-hero__badge">
+                {output.isFallbackImage ? "🖼️ Preview" : "✨ AI Generated · fal.ai"}
+              </span>
               {output.style?.charAt(0).toUpperCase()}{output.style?.slice(1)} {output.roomType || "room"} —{" "}
               {output.roomDimensions.width}×{output.roomDimensions.length} cm
             </div>

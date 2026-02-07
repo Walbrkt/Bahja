@@ -1,5 +1,51 @@
 import { McpServer } from "skybridge/server";
 import { z } from "zod";
+import { fal } from "@fal-ai/client";
+
+// ─── fal.ai configuration ───────────────────────────────────────────────────
+
+fal.config({
+  credentials: process.env.FAL_KEY || "",
+});
+
+/**
+ * Generate an image using fal.ai Flux 2 Flex model.
+ * Returns the generated image URL or a fallback URL on failure.
+ */
+async function generateImageWithFal(
+  prompt: string,
+  fallbackUrl: string,
+): Promise<{ url: string; isFallback: boolean }> {
+  if (!process.env.FAL_KEY) {
+    console.warn("[fal.ai] FAL_KEY not set — using fallback image");
+    return { url: fallbackUrl, isFallback: true };
+  }
+
+  try {
+    const result = await fal.subscribe("fal-ai/flux-2-flex", {
+      input: {
+        prompt,
+        image_size: { width: 1024, height: 768 },
+        enable_prompt_expansion: true,
+        num_inference_steps: 28,
+      },
+    });
+
+    const imageUrl = (result as any)?.data?.images?.[0]?.url
+      || (result as any)?.images?.[0]?.url;
+
+    if (imageUrl && typeof imageUrl === "string") {
+      console.log("[fal.ai] Image generated successfully");
+      return { url: imageUrl, isFallback: false };
+    }
+
+    console.warn("[fal.ai] No image URL in response — using fallback");
+    return { url: fallbackUrl, isFallback: true };
+  } catch (error) {
+    console.error("[fal.ai] Image generation failed:", error);
+    return { url: fallbackUrl, isFallback: true };
+  }
+}
 
 // ─── Mock Furniture Catalog ──────────────────────────────────────────────────
 
@@ -820,8 +866,17 @@ const server = new McpServer(
       _meta: {
         ui: {
           csp: {
-            connectDomains: ["https://image.pollinations.ai"],
-            resourceDomains: ["https://images.unsplash.com", "https://image.pollinations.ai"],
+            connectDomains: [
+              "https://fal.run",
+              "https://queue.fal.run",
+              "https://rest.alpha.fal.ai",
+            ],
+            resourceDomains: [
+              "https://images.unsplash.com",
+              "https://v3b.fal.media",
+              "https://fal.media",
+              "https://storage.googleapis.com",
+            ],
             redirectDomains: [
               "https://www.ikea.com",
               "https://www.maisonsdumonde.com",
@@ -885,7 +940,7 @@ const server = new McpServer(
           paint = [...PAINT_CATALOG];
         }
 
-        // ── Auto-generate AI room image ──
+        // ── Auto-generate AI room image via fal.ai ──
         const topPaint = paint[0];
         const furnitureNames = furniture.slice(0, 6).map((f) => f.name);
         const imagePrompt = [
@@ -897,15 +952,30 @@ const server = new McpServer(
           `professional interior photography, wide angle lens, natural daylight`,
           `8k, architectural visualization, warm ambient lighting`,
         ].filter(Boolean).join(", ");
-        const encodedPrompt = encodeURIComponent(imagePrompt);
-        const renderImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=768&seed=${Date.now()}&nologo=true`;
+        
+        // Fallback: Use a placeholder interior design image from Unsplash based on style
+        const styleImageMap: Record<string, string> = {
+          moroccan: "https://images.unsplash.com/photo-1604183645328-dac760db40b2?w=1024&h=768&fit=crop",
+          bohemian: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1024&h=768&fit=crop",
+          scandinavian: "https://images.unsplash.com/photo-1551874645-eab55a1356ba?w=1024&h=768&fit=crop",
+          minimal: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1024&h=768&fit=crop",
+          modern: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1024&h=768&fit=crop",
+          industrial: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1024&h=768&fit=crop",
+          classic: "https://images.unsplash.com/photo-1578500494198-246f612d03b3?w=1024&h=768&fit=crop",
+        };
+        const fallbackUrl = styleImageMap[style.toLowerCase()] || "https://images.unsplash.com/photo-1551874645-eab55a1356ba?w=1024&h=768&fit=crop";
+
+        // Generate image using fal.ai (with fallback)
+        const { url: renderImageUrl, isFallback } = await generateImageWithFal(imagePrompt, fallbackUrl);
 
         const structuredContent = {
           roomDimensions: { width: roomWidth, length: roomLength, height: roomHeight },
           style,
           budget: budget || null,
           roomType: roomType || null,
-          renderImageUrl,
+          renderImageUrl, // AI-generated via fal.ai (or fallback)
+          fallbackImageUrl: fallbackUrl, // Secondary fallback
+          isFallbackImage: isFallback, // Whether fal.ai was unavailable
           furnitureCount: furniture.length,
           paintCount: paint.length,
           furniture: furniture.map((f) => ({
@@ -1098,8 +1168,6 @@ const server = new McpServer(
       },
     },
     async ({ roomWidth, roomLength, roomHeight, style, furnitureNames, paintColor, description }) => {
-      const renderUrl = "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&h=600&fit=crop";
-
       const renderDescription = [
         `${style.charAt(0).toUpperCase() + style.slice(1)} room (${roomWidth}×${roomLength}×${roomHeight}cm)`,
         furnitureNames?.length ? `with ${furnitureNames.join(", ")}` : "",
@@ -1108,6 +1176,10 @@ const server = new McpServer(
       ]
         .filter(Boolean)
         .join(" ");
+
+      const prompt = `Photorealistic interior design render: ${renderDescription}, professional interior photography, natural daylight, 8k`;
+      const fallbackUrl = "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&h=600&fit=crop";
+      const { url: renderUrl } = await generateImageWithFal(prompt, fallbackUrl);
 
       return {
         structuredContent: { renderUrl, description: renderDescription },
@@ -1160,9 +1232,9 @@ const server = new McpServer(
         userPrompt ? userPrompt : "",
       ].filter(Boolean).join(", ");
 
-      // Use Pollinations.ai free API for image generation
-      const encodedPrompt = encodeURIComponent(prompt);
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=768&seed=${Date.now()}&nologo=true`;
+      // Use fal.ai for AI image generation
+      const fallbackUrl = "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1024&h=768&fit=crop";
+      const { url: imageUrl } = await generateImageWithFal(prompt, fallbackUrl);
 
       return {
         structuredContent: {
@@ -1176,7 +1248,7 @@ const server = new McpServer(
         content: [
           {
             type: "text" as const,
-            text: `Generated AI room visualization: ${style} ${roomType || "room"} with ${furnitureList} and ${paintColor || "white"} walls. Image is being rendered.`,
+            text: `Generated AI room visualization: ${style} ${roomType || "room"} with ${furnitureList} and ${paintColor || "white"} walls. Image rendered via fal.ai.`,
           },
         ],
       };
