@@ -658,3 +658,30 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+/* ─── AI Selections Summary ────────────────────────────────────────────────── */
+
+.ai-selections-summary {
+  padding: 12px 16px;
+  background: var(--surface-hover);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+
+.ai-selections-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.ai-tag {
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ai-tag:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}

@@ -16,14 +16,20 @@ async function generateImageWithFal(
   prompt: string,
   fallbackUrl: string,
 ): Promise<{ url: string; isFallback: boolean }> {
-  if (!process.env.FAL_KEY) {
+  const falKey = process.env.FAL_KEY;
+  if (!falKey) {
     console.warn("[fal.ai] FAL_KEY not set — using fallback image");
+    console.warn("[fal.ai] Available env keys:", Object.keys(process.env).filter(k => k.includes("FAL")).join(", ") || "none");
     return { url: fallbackUrl, isFallback: true };
   }
 
+  // Ensure credentials are set (in case env loaded after fal.config)
+  fal.config({ credentials: falKey });
+
   try {
     const seed = Math.floor(Math.random() * 999999);
-    console.log("[fal.ai] Generating image with prompt:", prompt.substring(0, 120) + "...");
+    console.log("[fal.ai] Generating image (seed:", seed, ")");
+    console.log("[fal.ai] Prompt:", prompt.substring(0, 200) + "...");
     
     const result = await fal.subscribe("fal-ai/flux-2-flex", {
       input: {
@@ -31,22 +37,33 @@ async function generateImageWithFal(
         image_size: { width: 1024, height: 768 },
         enable_prompt_expansion: true,
         num_inference_steps: 28,
+        guidance_scale: 3.5,
         seed,
       },
+      logs: true,
+      onQueueUpdate: (update) => {
+        if (update.status === "IN_PROGRESS") {
+          console.log("[fal.ai] Generation in progress...");
+        }
+      },
     });
+
+    console.log("[fal.ai] Raw result keys:", Object.keys(result || {}));
+    console.log("[fal.ai] Data keys:", Object.keys((result as any)?.data || {}));
 
     const imageUrl = (result as any)?.data?.images?.[0]?.url
       || (result as any)?.images?.[0]?.url;
 
     if (imageUrl && typeof imageUrl === "string") {
-      console.log("[fal.ai] Image generated successfully (seed:", seed, ")");
+      console.log("[fal.ai] ✅ Image generated successfully:", imageUrl);
       return { url: imageUrl, isFallback: false };
     }
 
-    console.warn("[fal.ai] No image URL in response — using fallback");
+    console.warn("[fal.ai] No image URL in response. Full result:", JSON.stringify(result).substring(0, 500));
     return { url: fallbackUrl, isFallback: true };
-  } catch (error) {
-    console.error("[fal.ai] Image generation failed:", error);
+  } catch (error: any) {
+    console.error("[fal.ai] ❌ Image generation failed:", error?.message || error);
+    console.error("[fal.ai] Error details:", JSON.stringify(error?.body || error?.response || {}).substring(0, 500));
     return { url: fallbackUrl, isFallback: true };
   }
 }
@@ -68,6 +85,7 @@ const STYLE_VISUAL_PROMPTS: Record<string, string> = {
 
 /**
  * Build a rich, style-aware prompt for AI image generation.
+ * Uses structured description for maximum prompt adherence.
  */
 function buildImagePrompt(params: {
   style: string;
@@ -88,27 +106,38 @@ function buildImagePrompt(params: {
     || STYLE_VISUAL_PROMPTS[Object.keys(STYLE_VISUAL_PROMPTS).find(k => styleKey.includes(k)) || ""] 
     || "elegant interior design";
 
-  const parts: string[] = [
-    `Photorealistic interior design photograph of a beautiful ${style} ${roomType || "living room"}`,
-    `spacious room approximately ${roomWidth / 100}m × ${roomLength / 100}m with ${roomHeight / 100}m ceilings`,
-    styleVisuals,
-  ];
-
-  if (paintColor && paintColor !== "white") {
-    parts.push(`walls painted in ${paintColor}${paintHex ? ` (${paintHex})` : ""}`);
+  // Build a detailed structured prompt
+  const parts: string[] = [];
+  
+  // Core scene
+  parts.push(`Photorealistic interior design photograph of a stunning ${style} ${roomType || "living room"}`);
+  parts.push(`Room dimensions: ${roomWidth / 100}m wide × ${roomLength / 100}m long with ${roomHeight / 100}m high ceilings`);
+  
+  // Style visuals (this is the most important part)
+  parts.push(styleVisuals);
+  
+  // Wall color with hex code for precise color matching
+  if (paintColor && paintHex) {
+    parts.push(`walls painted in color ${paintHex}, ${paintColor} tone`);
+  } else if (paintColor) {
+    parts.push(`walls painted in ${paintColor}`);
   }
 
+  // Furniture — describe each piece clearly
   if (furnitureNames && furnitureNames.length > 0) {
-    parts.push(`featuring: ${furnitureNames.slice(0, 5).join(", ")}`);
+    const furnitureDesc = furnitureNames.slice(0, 6).map(name => name).join(", ");
+    parts.push(`The room contains the following furniture pieces prominently visible: ${furnitureDesc}`);
   }
 
+  // User's custom prompt
   if (userPrompt) {
     parts.push(userPrompt);
   }
 
-  parts.push("professional architectural photography, wide angle lens, natural daylight streaming through windows, high-end interior design magazine quality, ultra detailed, 8K resolution");
+  // Photography quality
+  parts.push("Shot with professional architectural photography, wide angle 24mm lens, natural daylight streaming through windows, soft shadows, high-end interior design magazine quality, ultra detailed, 8K resolution, photorealistic");
 
-  return parts.join(". ");
+  return parts.join(". ") + ".";
 }
 
 // ─── Mock Furniture Catalog ──────────────────────────────────────────────────
@@ -960,7 +989,7 @@ const server = new McpServer(
         roomWidth: z.number().describe("Room width in cm"),
         roomLength: z.number().describe("Room length in cm"),
         roomHeight: z.number().describe("Room height in cm, default ~250"),
-        style: z.string().describe("Design style: scandinavian, modern, industrial, bohemian, classic, minimal"),
+        style: z.string().describe("Design style: moroccan, scandinavian, modern, industrial, bohemian, classic, minimal, french, japanese, tropical"),
         budget: z.number().optional().describe("Total budget in EUR"),
         preferences: z.string().optional().describe("Additional preferences: colors, vibe, specific items wanted"),
         roomType: z.string().optional().describe("Room type: living room, bedroom, office, dining room"),
@@ -1028,6 +1057,9 @@ const server = new McpServer(
           modern: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1024&h=768&fit=crop",
           industrial: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1024&h=768&fit=crop",
           classic: "https://images.unsplash.com/photo-1578500494198-246f612d03b3?w=1024&h=768&fit=crop",
+          french: "https://images.unsplash.com/photo-1505577058444-a3dab90d4253?w=1024&h=768&fit=crop",
+          japanese: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=1024&h=768&fit=crop",
+          tropical: "https://images.unsplash.com/photo-1540541338287-41700207dee6?w=1024&h=768&fit=crop",
         };
         const fallbackUrl = styleImageMap[style.toLowerCase()] || "https://images.unsplash.com/photo-1551874645-eab55a1356ba?w=1024&h=768&fit=crop";
 
@@ -1279,7 +1311,7 @@ const server = new McpServer(
         roomWidth: z.number().describe("Room width in cm"),
         roomLength: z.number().describe("Room length in cm"),
         roomHeight: z.number().describe("Room height in cm"),
-        style: z.string().describe("Design style: scandinavian, modern, industrial, bohemian, classic"),
+        style: z.string().describe("Design style: moroccan, scandinavian, modern, industrial, bohemian, classic, minimal, french, japanese, tropical"),
         furnitureNames: z.array(z.string()).describe("Names of selected furniture items to include"),
         paintColor: z.string().optional().describe("Wall paint color name"),
         paintHex: z.string().optional().describe("Wall paint hex color"),
