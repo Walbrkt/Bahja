@@ -1,6 +1,9 @@
 import { McpServer } from "skybridge/server";
 import { z } from "zod";
 import { fal } from "@fal-ai/client";
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
 
 // ─── fal.ai configuration ───────────────────────────────────────────────────
 
@@ -11,7 +14,8 @@ fal.config({
 /**
  * Generate an image using fal.ai Recraft V3 model.
  * Recraft V3 is SOTA for prompt adherence and photorealistic interior design.
- * Returns the generated image URL or a fallback URL on failure.
+ * Downloads the image and saves it to the server filesystem for same-origin serving.
+ * Returns a same-origin /generated-images/ URL.
  */
 async function generateImageWithFal(
   prompt: string,
@@ -52,20 +56,31 @@ async function generateImageWithFal(
     if (imageUrl && typeof imageUrl === "string") {
       console.log("[fal.ai] ✅ Image generated:", imageUrl.substring(0, 100));
 
-      // Download the image and convert to base64 data URI
-      // This completely avoids CSP/proxy issues — the image is embedded in the response
+      // Download the image and save to filesystem for same-origin serving
       try {
         const imgResponse = await fetch(imageUrl);
         if (imgResponse.ok) {
           const arrayBuffer = await imgResponse.arrayBuffer();
-          const base64 = Buffer.from(arrayBuffer).toString("base64");
+          const buffer = Buffer.from(arrayBuffer);
           const contentType = imgResponse.headers.get("content-type") || "image/png";
-          const dataUri = `data:${contentType};base64,${base64}`;
-          console.log("[fal.ai] ✅ Converted to data URI (", Math.round(base64.length / 1024), "KB)");
-          return { url: dataUri, isFallback: false };
+          const ext = contentType.includes("webp") ? "webp" : contentType.includes("png") ? "png" : "jpg";
+          const filename = `room-${crypto.randomUUID()}.${ext}`;
+          
+          // Get the generated images directory from global
+          const generatedDir = (globalThis as any).__GENERATED_DIR || "/tmp/generated-images";
+          if (!fs.existsSync(generatedDir)) {
+            fs.mkdirSync(generatedDir, { recursive: true });
+          }
+          
+          const filepath = path.join(generatedDir, filename);
+          fs.writeFileSync(filepath, buffer);
+          
+          const sameOriginUrl = `/generated-images/${filename}`;
+          console.log("[fal.ai] ✅ Saved to filesystem:", sameOriginUrl, `(${Math.round(buffer.length / 1024)} KB)`);
+          return { url: sameOriginUrl, isFallback: false };
         }
       } catch (dlError: any) {
-        console.warn("[fal.ai] Could not download image for base64:", dlError.message);
+        console.warn("[fal.ai] Could not download/save image:", dlError.message);
       }
 
       // Fallback: use proxy URL
@@ -1101,8 +1116,6 @@ const server = new McpServer(
           style,
           budget: budget || null,
           roomType: roomType || null,
-          renderImageUrl, // AI-generated via fal.ai (or fallback), proxied
-          fallbackImageUrl: proxyImageUrl(fallbackUrl), // Secondary fallback, also proxied
           isFallbackImage: isFallback, // Whether fal.ai was unavailable
           furnitureCount: furniture.length,
           paintCount: paint.length,
@@ -1125,6 +1138,8 @@ const server = new McpServer(
         };
 
         const _meta = {
+          renderImageUrl, // AI-generated via fal.ai — same-origin URL
+          fallbackImageUrl: proxyImageUrl(fallbackUrl), // Secondary fallback, proxied
           furniture: furniture.map((f) => ({
             id: f.id,
             name: f.name,

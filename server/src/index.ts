@@ -1,5 +1,6 @@
 import "dotenv/config";
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express, { type Express } from "express";
@@ -11,6 +12,26 @@ import server from "./server.js";
 const app = express() as Express & { vite: ViteDevServer };
 
 app.use(express.json());
+
+// ── Static serving for AI-generated images ────────────────────────────────────
+// Images saved by fal.ai generation are served from /generated-images/
+const GENERATED_DIR = path.join(
+  process.env.NODE_ENV === "production"
+    ? "/tmp"
+    : path.dirname(fileURLToPath(import.meta.url)),
+  "generated-images",
+);
+if (!fs.existsSync(GENERATED_DIR)) {
+  fs.mkdirSync(GENERATED_DIR, { recursive: true });
+}
+// Export for use in server.ts
+(globalThis as any).__GENERATED_DIR = GENERATED_DIR;
+
+app.use("/generated-images", cors());
+app.use("/generated-images", express.static(GENERATED_DIR, {
+  maxAge: "1d",
+  immutable: true,
+}));
 
 // ── Image proxy endpoint ─────────────────────────────────────────────────────
 // Proxies images from fal.ai (and other allowed sources) through our server

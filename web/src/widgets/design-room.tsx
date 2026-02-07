@@ -582,13 +582,6 @@ function DesignRoom() {
   const [imageError, setImageError] = useState(false);
   const [heroSrc, setHeroSrc] = useState<string | null>(null);
 
-  // Set hero image source when output loads
-  useEffect(() => {
-    if (output?.renderImageUrl && !heroSrc) {
-      setHeroSrc(output.renderImageUrl);
-    }
-  }, [output?.renderImageUrl]);
-
   // Loading state
   if (isPending || !output) {
     return (
@@ -608,9 +601,18 @@ function DesignRoom() {
   }
 
   const meta = responseMetadata as {
+    renderImageUrl?: string;
+    fallbackImageUrl?: string;
     furniture: FurnitureItem[];
     paint: PaintItem[];
   };
+
+  // Set hero image source from _meta when output loads
+  useEffect(() => {
+    if (meta?.renderImageUrl && !heroSrc) {
+      setHeroSrc(meta.renderImageUrl);
+    }
+  }, [meta?.renderImageUrl]);
 
   const isFullscreen = displayMode === "fullscreen";
 
@@ -656,8 +658,8 @@ function DesignRoom() {
             }}
             onError={() => {
               // Try fallback if main image fails
-              if (output.fallbackImageUrl && heroSrc !== output.fallbackImageUrl) {
-                setHeroSrc(output.fallbackImageUrl);
+              if (meta?.fallbackImageUrl && heroSrc !== meta.fallbackImageUrl) {
+                setHeroSrc(meta.fallbackImageUrl);
               } else {
                 setImageError(true);
                 setImageLoaded(true);
@@ -667,7 +669,7 @@ function DesignRoom() {
           {imageLoaded && !imageError && (
             <div className="rc-hero__caption">
               <span className="rc-hero__badge">
-                {output.isFallbackImage || heroSrc === output.fallbackImageUrl
+                {output.isFallbackImage || heroSrc === meta?.fallbackImageUrl
                   ? "🖼️ Preview" 
                   : "✨ AI Generated · fal.ai"}
               </span>
