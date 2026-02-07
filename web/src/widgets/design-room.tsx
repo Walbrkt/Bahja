@@ -262,12 +262,14 @@ function VisualizeTab({
   roomHeight,
   style,
   roomType,
+  onImageGenerated,
 }: {
   roomWidth: number;
   roomLength: number;
   roomHeight: number;
   style: string;
   roomType: string | null;
+  onImageGenerated?: (url: string) => void;
 }) {
   const { selectedItems } = useSelectionStore();
   const [userPrompt, setUserPrompt] = useState("");
@@ -400,6 +402,7 @@ function VisualizeTab({
       const url = sc?.imageUrl;
       if (url && typeof url === "string") {
         setGeneratedImageUrl(url);
+        onImageGenerated?.(url);
       }
     }
   }, [imageData, isImagePending]);
@@ -576,6 +579,7 @@ function VisualizeTab({
 
 function DesignRoom() {
   const { input, output, isPending, responseMetadata } = useToolInfo<"design-room">();
+  const { selectedItems } = useSelectionStore();
   const [displayMode, setDisplayMode] = useDisplayMode();
   const [activeTab, setActiveTab] = useState<"furniture" | "paint" | "3d">("furniture");
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -673,10 +677,9 @@ function DesignRoom() {
               <span className="rc-hero__badge">
                 {output.isFallbackImage || heroSrc === ((output as any)?.fallbackImageUrl || meta?.fallbackImageUrl)
                   ? "🖼️ Preview" 
-                  : "✨ AI Generated · fal.ai"}
+                  : "✨ AI GENERATED · FAL.AI"}
               </span>
-              {output.style?.charAt(0).toUpperCase()}{output.style?.slice(1)} {output.roomType || "room"} —{" "}
-              {output.roomDimensions.width}×{output.roomDimensions.length} cm
+              {output.style?.charAt(0).toUpperCase()}{output.style?.slice(1)} {output.roomType || "room"} · {selectedItems.length} items
             </div>
           )}
           {imageError && (
@@ -745,6 +748,11 @@ function DesignRoom() {
           roomHeight={output.roomDimensions.height}
           style={output.style || "modern"}
           roomType={output.roomType || null}
+          onImageGenerated={(url) => {
+            setHeroSrc(url);
+            setImageLoaded(false);
+            setImageError(false);
+          }}
         />
       )}
     </div>
