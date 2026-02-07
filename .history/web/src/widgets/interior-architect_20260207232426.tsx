@@ -110,15 +110,6 @@ function InteriorArchitect() {
   const furnishedImageUrl = (responseMetadata?.furnishedImageUrl || callToolData?.meta?.furnishedImageUrl) as string | undefined;
   const isLoading = isPending || isCallPending;
 
-  // Debug: Log when furnished image URL changes
-  useEffect(() => {
-    if (furnishedImageUrl) {
-      console.log("✅ Generated image URL received:", furnishedImageUrl);
-      console.log("📊 Mode:", mode);
-      console.log("📦 Products count:", products.length);
-    }
-  }, [furnishedImageUrl, mode, products.length]);
-
   // Auto-prompt for room image on mount
   useEffect(() => {
     if (!loadedOnce && !isLoading) {
