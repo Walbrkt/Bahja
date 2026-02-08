@@ -1,5 +1,5 @@
 import "@/index.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { mountWidget, useSendFollowUpMessage, useFiles } from "skybridge/web";
 import { useOpenExternal } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
@@ -37,6 +37,13 @@ function InteriorArchitect() {
   const userPrompt = (responseMetadata?.userPrompt || callToolData?.meta?.userPrompt) as string | undefined;
   const isLoading = isPending || isCallPending;
 
+  // Initialize widget on mount - call tool with no parameters to show upload UI
+  useEffect(() => {
+    if (!responseMetadata && !callToolData && !isLoading) {
+      callTool({});
+    }
+  }, []);
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -49,8 +56,8 @@ function InteriorArchitect() {
       
       setUploadedImageUrl(downloadUrl);
       
-      // Send message with the uploaded image URL
-      sendFollowUpMessage(`I uploaded a room image: ${downloadUrl}`);
+      // Send message asking what furniture they want
+      sendFollowUpMessage(`I uploaded a room image: ${downloadUrl}\n\nWhat furniture would you like to add to this room?`);
     } catch (error) {
       console.error("Upload failed:", error);
       alert("Failed to upload image. Please try again.");
@@ -90,13 +97,13 @@ function InteriorArchitect() {
     }
   };
 
-  // Need image from chat
-  if (mode === "needImage" && !storedRoomImage) {
+  // Always show upload UI first if no image is uploaded
+  if (!storedRoomImage && !uploadedImageUrl) {
     return (
       <div className="app">
         <div className="empty-state">
           <h2>🏠 Interior Architect</h2>
-          <p style={{ marginBottom: "16px" }}>Upload a room image to get started</p>
+          <p style={{ marginBottom: "24px", fontSize: "16px" }}>Start by uploading a room image</p>
           <input
             type="file"
             accept="image/*"
@@ -112,7 +119,30 @@ function InteriorArchitect() {
             }}
           />
           {isUploading && <p style={{ marginTop: "12px", color: "#6b7280" }}>Uploading...</p>}
-          <p style={{ marginTop: "16px", fontSize: "14px", color: "#6b7280" }}>Or upload an image in the chat</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show waiting state after upload, before user responds with furniture request
+  if ((uploadedImageUrl || storedRoomImage) && mode === "needImage") {
+    return (
+      <div className="app">
+        <div className="empty-state">
+          <h2>✅ Image Uploaded</h2>
+          <p>Tell me what furniture you'd like to add!</p>
+          {(uploadedImageUrl || storedRoomImage) && (
+            <img 
+              src={uploadedImageUrl || storedRoomImage} 
+              alt="Uploaded room" 
+              style={{ 
+                maxWidth: "400px", 
+                marginTop: "20px", 
+                borderRadius: "12px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+              }} 
+            />
+          )}
         </div>
       </div>
     );

@@ -24,9 +24,9 @@ const server = new McpServer(
     },
     {
       description:
-        "Interior design tool that shows IKEA furniture catalogue. When user uploads image via widget (sends 'I uploaded a room image: <URL>') or in chat, and mentions furniture, immediately call this tool with imageUrl and prompt. Extract imageUrl from the upload message or chat attachments.",
+        "Interior design tool that shows IKEA furniture catalogue. Flow: 1) Widget shows upload button first. 2) User uploads image, widget asks 'What furniture would you like to add?'. 3) When user responds with furniture description (e.g., 'a red sofa'), call this tool with imageUrl (from upload message) and prompt (furniture description). DO NOT call tool until user specifies what furniture they want.",
       inputSchema: {
-        imageUrl: z.string().optional().describe("Room image URL - extract from: 1) Widget message 'I uploaded a room image: <URL>' (extract the URL after the colon), 2) User's pasted URL, 3) Chat upload attachment. Support https:// URLs, data: URIs, and file:// URIs"),
+        imageUrl: z.string().optional().describe("Room image URL - extract from previous 'I uploaded a room image: <URL>' message in conversation. This URL was sent by the widget after user uploaded."),
         productImageUrl: z.string().optional().describe("INTERNAL: Extract 'Product Image:' URL when user sends 'Generate room with this furniture' message from widget"),
         prompt: z.string().optional().describe("The furniture description with adjectives (e.g., 'red sofa', 'modern chandelier', 'wooden table'). For initial user message: extract furniture description ('add a red sofa' → 'red sofa'). For widget messages: extract from 'User wants:' line which contains the original description."),
         style: z.string().optional().describe("Style filter"),
