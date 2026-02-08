@@ -149,15 +149,17 @@ export async function editRoomImage({
   // Build prompt for furniture editing with reference
   const enhancedPrompt = productImageUrl 
     ? [
-        "Image 1: base room (keep walls, floor, lighting as-is)",
-        `Image 2: reference ${prompt}`,
-        `Add the ${prompt} naturally into the room`,
-        `Position centrally or in empty space`,
-        `Orient parallel to walls - align with room architecture`,
-        `Place flat on floor, matching room perspective and vanishing point`,
-        `Scale proportionally to room size`,
-        `Match lighting and shadows`,
-        style ? `${style} style` : "",
+        "Image 1 is the room base - preserve all existing elements",
+        `Image 2 shows the ${prompt} to add`,
+        `Seamlessly integrate the ${prompt} into the room's largest empty floor space`,
+        `Orient parallel to the back wall`,
+        `Position on the floor plane matching the room's perspective grid`,
+        `Align with the room's vanishing point - recede naturally with depth`,
+        `Scale realistically - not too large or small compared to existing furniture`,
+        `Place where it would naturally belong for this room type`,
+        `Match the room's lighting angle, shadow depth, and color temperature exactly`,
+        `Ensure no overlap with existing furniture or walls`,
+        style ? `${style} interior style` : "",
       ].filter(Boolean).join(". ")
     : [
         prompt,
