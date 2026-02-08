@@ -12,7 +12,6 @@ const server = new McpServer(
     {
       description:
         "Browse IKEA furniture and visualize it in rooms. Widget handles image uploads and product selection.",
-      autoInvoke: true,
       _meta: {
         ui: {
           csp: {
