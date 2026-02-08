@@ -92,7 +92,7 @@ function InteriorArchitect() {
   if (mode === "selection" && products.length > 0 && !furnishedImageUrl) {
     return (
       <div className="app">
-        <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
+        <div style={{ padding: "24px", maxWidth: "1800px", margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
             <h2 style={{ fontSize: "28px", margin: "0 0 8px 0" }}>Choose Furniture to Add</h2>
             <p style={{ color: "#6b7280", fontSize: "15px" }}>Click any product to visualize it in your room</p>
@@ -256,7 +256,7 @@ function InteriorArchitect() {
 
     return (
       <div className="app">
-        <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
+        <div style={{ padding: "24px", maxWidth: "1600px", margin: "0 auto" }}>
           <div style={{
             backgroundColor: "white",
             borderRadius: "16px",
