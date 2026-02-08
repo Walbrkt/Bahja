@@ -230,11 +230,13 @@ function DesignRoom() {
   // Merge search results into extra furniture
   useEffect(() => {
     if (searchData && !isSearchPending) {
-      const sc = searchData.structuredContent as { items?: FurnitureItem[] } | undefined;
+      const sc = searchData.structuredContent as unknown as { items?: Array<Omit<FurnitureItem, "style"> & { style?: string }> } | undefined;
       if (sc?.items && sc.items.length > 0) {
         setExtraFurniture((prev) => {
           const existingIds = new Set(prev.map((f) => f.id));
-          const newItems = sc.items!.filter((item) => !existingIds.has(item.id));
+          const newItems = sc.items!
+            .filter((item) => !existingIds.has(item.id))
+            .map((item) => ({ ...item, style: item.style || "" }));
           return [...prev, ...newItems];
         });
       }
