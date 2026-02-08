@@ -24,15 +24,31 @@ function InteriorArchitect() {
   const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
   const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const openExternal = useOpenExternal();
   const sendFollowUpMessage = useSendFollowUpMessage();
 
   const products = (responseMetadata?.products || callToolData?.meta?.products || []) as IkeaProduct[];
   const mode = (responseMetadata?.mode || callToolData?.meta?.mode || "needImage") as "needImage" | "selection" | "result";
-  const storedRoomImage = (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
+  const storedRoomImage = uploadedImageUrl || (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
   const furnishedImageUrl = (responseMetadata?.furnishedImageUrl || callToolData?.meta?.furnishedImageUrl) as string | undefined;
   const userPrompt = (responseMetadata?.userPrompt || callToolData?.meta?.userPrompt) as string | undefined;
   const isLoading = isPending || isCallPending;
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      setUploadedImageUrl(dataUrl);
+      
+      // Immediately send message with the uploaded image
+      sendFollowUpMessage(`I uploaded a room image. Here is the data URI: ${dataUrl}`);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Debug logging
   console.log("Widget State:", {
@@ -71,7 +87,21 @@ function InteriorArchitect() {
       <div className="app">
         <div className="empty-state">
           <h2>🏠 Interior Architect</h2>
-          <p>Share a room image URL in the chat to get started</p>
+          <p style={{ marginBottom: "16px" }}>Upload a room image to get started</p>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            style={{
+              padding: "12px 24px",
+              fontSize: "16px",
+              cursor: "pointer",
+              borderRadius: "8px",
+              border: "2px solid #3b82f6",
+              backgroundColor: "white",
+            }}
+          />
+          <p style={{ marginTop: "16px", fontSize: "14px", color: "#6b7280" }}>Or share an image URL in the chat</p>
         </div>
       </div>
     );
