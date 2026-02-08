@@ -1025,22 +1025,9 @@ const server = new McpServer(
           paint = [...PAINT_CATALOG];
         }
 
-        // ── Auto-generate AI room image via fal.ai ──
-        const topPaint = paint[0];
-        const furnitureNames = furniture.slice(0, 6).map((f) => f.name);
-        const imagePrompt = buildImagePrompt({
-          style,
-          roomType,
-          roomWidth,
-          roomLength,
-          roomHeight,
-          paintColor: topPaint?.color || null,
-          paintHex: topPaint?.colorHex || null,
-          furnitureNames,
-          userPrompt: preferences || null,
-        });
-        
-        // Fallback: Use a placeholder interior design image from Unsplash based on style
+        // ── Use style-based Unsplash placeholder as hero ──
+        // Real AI image generation happens when user selects items and clicks "Generate"
+        // in the Visualize tab (via generate-room-image tool)
         const styleImageMap: Record<string, string> = {
           moroccan: "https://images.unsplash.com/photo-1604183645328-dac760db40b2?w=1024&h=768&fit=crop",
           bohemian: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1024&h=768&fit=crop",
@@ -1053,19 +1040,16 @@ const server = new McpServer(
           japanese: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=1024&h=768&fit=crop",
           tropical: "https://images.unsplash.com/photo-1540541338287-41700207dee6?w=1024&h=768&fit=crop",
         };
-        const fallbackUrl = styleImageMap[style.toLowerCase()] || "https://images.unsplash.com/photo-1551874645-eab55a1356ba?w=1024&h=768&fit=crop";
-
-        // Generate image using fal.ai (with fallback)
-        const { url: renderImageUrl, isFallback } = await generateImageWithFal(imagePrompt, fallbackUrl);
+        const renderImageUrl = styleImageMap[style.toLowerCase()] || "https://images.unsplash.com/photo-1551874645-eab55a1356ba?w=1024&h=768&fit=crop";
 
         const structuredContent = {
           roomDimensions: { width: roomWidth, length: roomLength, height: roomHeight },
           style,
           budget: budget || null,
           roomType: roomType || null,
-          renderImageUrl, // AI-generated via fal.ai — absolute URL
-          fallbackImageUrl: fallbackUrl, // Unsplash fallback — absolute URL
-          isFallbackImage: isFallback, // Whether fal.ai was unavailable
+          renderImageUrl, // Style placeholder — user generates AI image after selecting items
+          fallbackImageUrl: renderImageUrl, // Same as render (both are Unsplash placeholders)
+          isFallbackImage: true, // Placeholder — AI generation happens via Visualize tab
           furnitureCount: furniture.length,
           paintCount: paint.length,
           furniture: furniture.map((f) => ({
@@ -1087,8 +1071,8 @@ const server = new McpServer(
         };
 
         const _meta = {
-          renderImageUrl, // AI-generated via fal.ai — absolute URL
-          fallbackImageUrl: fallbackUrl, // Unsplash fallback — absolute URL
+          renderImageUrl, // Style placeholder
+          fallbackImageUrl: renderImageUrl,
           furniture: furniture.map((f) => ({
             id: f.id,
             name: f.name,

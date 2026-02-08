@@ -646,7 +646,7 @@ function DesignRoom() {
 
       {/* ── Hero AI Image ── */}
       {heroSrc && (
-        <div className="rc-hero" data-llm="AI-generated room visualization powered by fal.ai">
+        <div className="rc-hero" data-llm="Room preview — select furniture then generate AI image via Visualize tab">
           {!imageLoaded && !imageError && (
             <div className="rc-hero__loading">
               <div className="rc-loading__spinner" />
@@ -675,11 +675,25 @@ function DesignRoom() {
           {imageLoaded && !imageError && (
             <div className="rc-hero__caption">
               <span className="rc-hero__badge">
-                {output.isFallbackImage || heroSrc === ((output as any)?.fallbackImageUrl || meta?.fallbackImageUrl)
-                  ? "🖼️ Preview" 
+                {output.isFallbackImage && heroSrc === ((output as any)?.renderImageUrl || meta?.renderImageUrl)
+                  ? "🖼️ Style Preview" 
                   : "✨ AI GENERATED · FAL.AI"}
               </span>
-              {output.style?.charAt(0).toUpperCase()}{output.style?.slice(1)} {output.roomType || "room"} · {selectedItems.length} items
+              {output.style?.charAt(0).toUpperCase()}{output.style?.slice(1)} {output.roomType || "room"} · {selectedItems.length} items selected
+            </div>
+          )}
+          {/* CTA: prompt user to select items and generate */}
+          {imageLoaded && !imageError && output.isFallbackImage && heroSrc === ((output as any)?.renderImageUrl || meta?.renderImageUrl) && (
+            <div className="rc-hero__cta">
+              <p>👇 Select furniture from IKEA below, then go to <strong>✨ Visualize</strong> to generate your room with AI</p>
+              {selectedItems.filter(i => i.type === "furniture").length > 0 && (
+                <button
+                  className="btn btn--primary"
+                  onClick={() => setActiveTab("3d")}
+                >
+                  ✨ Generate with {selectedItems.filter(i => i.type === "furniture").length} selected item{selectedItems.filter(i => i.type === "furniture").length > 1 ? "s" : ""}
+                </button>
+              )}
             </div>
           )}
           {imageError && (
