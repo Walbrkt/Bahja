@@ -1,28 +1,32 @@
-# AI Interior Architect
+# RoomCraft — AI Interior Design Assistant
 
 ## Value Proposition
 
-Transform your room photos with AI-powered furniture placement. Upload a room image, describe what you want to add, and get instant furniture recommendations from IKEA with product references.
+Design and furnish rooms through conversation. Target: anyone moving, redecorating, or renovating who wants to visualize their space before buying.
 
-**Pain today:** Finding the right furniture, imagining how it looks in your space, browsing endless catalogs without context.
+**Pain today:** Measuring rooms, browsing dozens of furniture sites, guessing if items fit, imagining how paint colors look — all disconnected manual steps.
 
-**Core actions:** Upload room photo → describe desired furniture → get AI-edited image with furniture placed → browse matched IKEA products with references.
+**Core actions:** Describe room → get furniture & paint recommendations that fit → visualize the result → select items to buy.
 
 ## Why LLM?
 
-**Conversational win:** "Add a modern sofa and coffee table" → AI understands context, searches IKEA catalog, places furniture realistically in your room image.
+**Conversational win:** "I want a cozy Scandinavian living room, warm tones, budget €2000" → instant curated results vs. hours of browsing.
 
-**LLM adds:** Natural language understanding of furniture requests, style matching, spatial reasoning (what fits where), conversational refinement ("make it more minimalist").
+**LLM adds:** Understands style intent, reasons about spatial constraints (will this 2m sofa fit a 3m wall?), generates coherent design suggestions, adapts to feedback ("make it more minimal").
 
-**What LLM lacks:** Image manipulation, product catalog access, real IKEA data — provided by our tools.
+**What LLM lacks:** Real product catalog data, image generation capability, room rendering — provided by our tools.
 
 ## UI Overview
 
-**Upload view (inline):** Simple form to upload room image and enter text prompt describing desired furniture (e.g., "add a grey sofa and round coffee table").
+**First view (inline):** Room setup form — enter dimensions (L×W×H), optionally upload room photos, describe design preferences (style, colors, budget, vibe).
 
-**Results view (fullscreen):** AI-modified room image at top showing furniture in place, scrollable grid below with matched IKEA products (image, name, price, article number, buy link).
+**Design results (fullscreen):** Generated room visualization at top, scrollable grid of recommended furniture and paint items below. Each card shows image, name, price, dimensions, short description.
 
-**Product detail (modal):** Expanded product card with larger image, full description, dimensions, price, article reference, and direct IKEA buy link.
+**Item detail (modal):** Expanded view of one item — larger image, full description, dimensions, price, and "Buy" link to the retailer.
+
+**Selections sidebar:** Running list of items the user has selected, with total price and "Open store" links.
+
+**Visualize Tab:** Interactive 3D room viewer and AI-generated photorealistic room image. Users can toggle between the two views.
 
 ## UX Flows
 
@@ -31,11 +35,18 @@ Transform your room photos with AI-powered furniture placement. Upload a room im
 2. LLM calls `search-furniture` and `search-paint` tools to find matching items
 3. LLM calls `generate-room-render` to create a visualization
 4. Widget displays the render + item grid
-5. Upload room image + enter furniture prompt (conversational)
-2. LLM calls `search-ikea-products` to find matching furniture
-3. LLM calls `generate-furnished-room` to create AI-edited image with furniture
-4. Widget displays edited image + product grid with IKEA references
-5. User clicks products to view details and buy links
+5. User browses, selects items, views details
+6. User clicks "Buy" links to visit retailer sites
+
+### Visualize a Room
+1. Select furniture and paint items from the grid.
+2. Navigate to the "Visualize" tab.
+3. **3D Viewer**: View an interactive 3D representation of the room with selected items placed.
+4. **AI Image Generation**: Generate a photorealistic image of the room using AI.
+
+## API Design
+
+### Widget: `design-room`
 - **Input:** `{ roomWidth, roomLength, roomHeight, style, budget, preferences, imageUrl? }`
 - **Output:** `{ renderUrl, furniture[], paint[] }`
 - **Views:** Setup form → Results gallery → Visualize tab → Item detail (modal)
@@ -46,22 +57,29 @@ Transform your room photos with AI-powered furniture placement. Upload a room im
 - **Output:** `{ items[]: { id, name, description, price, currency, width, depth, height, imageUrl, buyUrl, retailer } }`
 - **Annotations:** readOnlyHint: true
 
-### Tool: `seinterior-architect`
-- **Input:** `{ imageUrl, prompt, style?, budget? }`
-- **Output:** `{ furnishedImageUrl, products[] }`
-- **Views:** Upload form → Results (furnished image + products)
-
-### Tool: `search-ikea-products`
-- **Input:** `{ query, category?, style?, maxPrice? }`
-- **Output:** `{ products[]: { id, name, description, price, currency, articleNumber, imageUrl, buyUrl, dimensions, category } }`
+### Tool: `search-paint`
+- **Input:** `{ query, color?, finish?, brand?, roomType? }`
+- **Output:** `{ items[]: { id, name, description, price, currency, color, colorHex, finish, coverage, imageUrl, buyUrl, retailer } }`
 - **Annotations:** readOnlyHint: true
 
-### Tool: `generate-furnished-room`
-- **Input:** `{ imageUrl, prompt, productNames[], style? }`
-- **Output:** `{ furnishedImageUrl, description, productsPlaced[] }` 
+### Tool: `generate-room-render`
+- **Input:** `{ roomWidth, roomLength, roomHeight, style, furniture[], paintColor?, description? }`
+- **Output:** `{ renderUrl, description }` 
+- **Annotations:** readOnlyHint: true
+
+### Tool: `generate-room-image`
+- **Input:** `{ roomWidth, roomLength, roomHeight, style, furnitureNames[], paintColor?, paintHex?, roomType?, userPrompt? }`
+- **Output:** `{ imageUrl, prompt, style, roomType, furnitureIncluded[], wallColor }`
+- **Annotations:** readOnlyHint: true
+
+### Tool: `get-3d-room-data`
+- **Input:** `{ roomWidth, roomLength, roomHeight, furnitureIds[], paintHex?, floorColor? }`
+- **Output:** `{ room: { width, length, height, wallColor, floorColor }, furniture: [{ id, name, category, position: { x, y, z } }], itemCount }`
 - **Annotations:** readOnlyHint: true
 
 ## Product Context
-- **APIs:** IKEA product search via web scraping (or mock data for MVP), image generation/editing via Pollinations.ai
-- **Auth:** None required
-- **Constraints:** MVP scope — IKEA focus, AI-generated furniture placement
+- **APIs:** Furniture/paint search via curated catalog data; AI image generation via **fal.ai Recraft V3** (SOTA prompt adherence, photorealistic)
+- **Partner Technologies:** Alpic/Skybridge (MCP framework), fal.ai (AI image generation), OpenAI/ChatGPT (LLM orchestration)
+- **Auth:** None required (FAL_KEY managed server-side)
+- **Image Proxy:** Server-side proxy at `/api/image-proxy` to bypass CSP restrictions in widget iframes
+- **Constraints:** Hackathon scope — curated catalog, server-side image proxy; real API integration planned post-hackathon

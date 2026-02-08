@@ -1,13 +1,25 @@
 /**
  * fal.ai Integration for Image Editing
- * Uses image-to-image generation to add furniture to rooms
+ * Uses the official @fal-ai/client SDK for reliable uploads and API calls.
  */
+import { fal } from "@fal-ai/client";
+
+// Configure fal client once
+let falConfigured = false;
+function configureFal() {
+  if (falConfigured) return;
+  const key = process.env.FAL_API_KEY || process.env.FAL_KEY;
+  if (!key) throw new Error("FAL_API_KEY not configured");
+  fal.config({ credentials: key });
+  falConfigured = true;
+}
 
 interface FalImageEditRequest {
   imageUrl: string;
   productImageUrl?: string;
   prompt: string;
   style?: string;
+  placementHint?: string;
 }
 
 interface FalImageEditResponse {
@@ -16,117 +28,51 @@ interface FalImageEditResponse {
 }
 
 /**
- * Upload a buffer to fal.ai storage and return a public URL
+ * Upload any image (URL, data URI, or buffer) to fal.ai storage via the SDK.
+ * Returns a fal.ai-hosted URL that all fal models can access.
  */
-async function uploadBufferToFal(buffer: Buffer, mimeType: string, falApiKey: string): Promise<string> {
-  const ext = mimeType.includes('png') ? 'png' : 'jpg';
-  const fileName = `room-upload-${Date.now()}.${ext}`;
-  
-  const formData = new FormData();
-  const uint8 = new Uint8Array(buffer);
-  const blob = new Blob([uint8], { type: mimeType });
-  formData.append('file_upload', blob, fileName);
-  
-  console.log(`   📤 Uploading to fal.ai: ${fileName} (${uint8.length} bytes)`);
-  console.log(`   Endpoint: https://api.fal.ai/v1/serverless/files/file/local/uploads/${fileName}`);
-  
-  const response = await fetch(`https://api.fal.ai/v1/serverless/files/file/local/uploads/${fileName}`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Key ${falApiKey}`,
-    },
-    body: formData,
-  });
-  
-  console.log(`   Response status: ${response.status} ${response.statusText}`);
-  
-  if (!response.ok) {
-    const error = await response.text();
-    console.error(`   ❌ fal.ai upload FAILED:`);
-    console.error(`      Status: ${response.status}`);
-    console.error(`      Error: ${error}`);
-    throw new Error(`fal.ai storage upload failed (${response.status}): ${error}`);
-  }
-  
-  const result = await response.json();
-  console.log(`   📋 fal.ai response body:`, JSON.stringify(result, null, 2));
-  
-  const uploadedUrl = result.url || result.file_url || result.access_url;
-  if (!uploadedUrl) {
-    console.error(`   ❌ No URL found in response`);
-    console.error(`   Response keys:`, Object.keys(result));
-    throw new Error(`fal.ai upload: no URL in response: ${JSON.stringify(result)}`);
-  }
-  
-  console.log(`   ✅ Upload successful: ${uploadedUrl}`);
-  return uploadedUrl;
-}
+async function uploadToFalStorage(imageUrl: string): Promise<string> {
+  configureFal();
 
-/**
- * Convert any image source to fal.ai compatible public URL
- * - data: URIs → extract base64, upload to fal.ai
- * - http(s) URLs → download image, re-upload to fal.ai (ensures accessibility)
- */
-async function ensureFalCompatibleUrl(imageUrl: string, falApiKey: string): Promise<string> {
-  console.log(`\n🔄 ensureFalCompatibleUrl called with: ${imageUrl.substring(0, 100)}...`);
-  
-  if (imageUrl.startsWith('data:')) {
-    console.log(`   Type: DATA URI`);
-    console.log(`   Length: ${imageUrl.length} chars`);
-    console.log(`   Action: Converting to fal.ai storage URL...`);
-    
-    const matches = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!matches) {
-      console.error(`   ❌ ERROR: Invalid data URI format`);
-      throw new Error("Invalid data URI format");
-    }
-    
-    const mimeType = matches[1];
-    const base64Length = matches[2].length;
-    console.log(`   MIME type: ${mimeType}`);
-    console.log(`   Base64 length: ${base64Length} chars`);
-    
-    const buffer = Buffer.from(matches[2], 'base64');
-    console.log(`   Buffer size: ${buffer.length} bytes`);
-    
-    const result = await uploadBufferToFal(buffer, mimeType, falApiKey);
-    console.log(`   ✅ SUCCESS: Converted data URI to ${result}`);
-    return result;
+  // If it's already a fal.media URL, no need to re-upload
+  if (imageUrl.includes("fal.media/files")) {
+    console.log(`   ✅ Already a fal.ai URL, skipping upload`);
+    return imageUrl;
   }
-  
-  if (imageUrl.startsWith('http')) {
-    console.log(`   Type: HTTP URL`);
-    console.log(`   URL: ${imageUrl}`);
-    console.log(`   Action: Downloading and re-uploading to fal.ai storage...`);
-    
-    try {
-      console.log(`   📥 Fetching image...`);
-      const response = await fetch(imageUrl);
-      
-      if (!response.ok) {
-        console.error(`   ❌ ERROR: Failed to download - HTTP ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to download: ${response.status}`);
-      }
-      
-      const contentType = response.headers.get('content-type') || 'image/jpeg';
-      console.log(`   Content-Type: ${contentType}`);
-      
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      console.log(`   Downloaded: ${buffer.length} bytes`);
-      
-      const result = await uploadBufferToFal(buffer, contentType, falApiKey);
-      console.log(`   ✅ SUCCESS: Re-uploaded to ${result}`);
-      return result;
-    } catch (err) {
-      console.error(`   ❌ ERROR during download/re-upload: ${err}`);
-      console.warn(`   ⚠️ FALLBACK: Using original URL (might fail if fal.ai can't access it)`);
-      return imageUrl;
+
+  console.log(`\n🔄 Uploading to fal.ai storage: ${imageUrl.substring(0, 80)}...`);
+
+  try {
+    if (imageUrl.startsWith("data:")) {
+      // Data URI → extract buffer → upload as File
+      const matches = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) throw new Error("Invalid data URI format");
+      const mimeType = matches[1];
+      const buffer = Buffer.from(matches[2], "base64");
+      const ext = mimeType.includes("png") ? "png" : "jpg";
+      const file = new File([buffer], `upload-${Date.now()}.${ext}`, { type: mimeType });
+      const url = await fal.storage.upload(file);
+      console.log(`   ✅ Uploaded data URI → ${url}`);
+      return url;
     }
+
+    // HTTP URL → download → upload as File
+    console.log(`   📥 Downloading image...`);
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const arrayBuffer = await response.arrayBuffer();
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+    const file = new File([arrayBuffer], `upload-${Date.now()}.${ext}`, { type: contentType });
+    console.log(`   📤 Uploading ${arrayBuffer.byteLength} bytes to fal.ai...`);
+    const url = await fal.storage.upload(file);
+    console.log(`   ✅ Uploaded → ${url}`);
+    return url;
+  } catch (err) {
+    console.error(`   ❌ Upload failed: ${err}`);
+    console.warn(`   ⚠️ FALLBACK: Using original URL`);
+    return imageUrl;
   }
-  
-  console.warn(`   ⚠️ WARNING: Unknown URL format, returning as-is`);
-  return imageUrl;
 }
 
 /**
@@ -137,84 +83,74 @@ export async function editRoomImage({
   productImageUrl,
   prompt,
   style,
+  placementHint,
 }: FalImageEditRequest): Promise<FalImageEditResponse> {
-  const falApiKey = process.env.FAL_API_KEY;
-  
-  if (!falApiKey) {
-    throw new Error("FAL_API_KEY not configured. Get your key from fal.ai with code: techeurope-paris");
-  }
+  configureFal();
 
   const startTime = Date.now();
+
+  // Build placement instruction — crucial for avoiding overlap
+  const placementInstruction = placementHint
+    ? `Place the furniture ${placementHint}. Do NOT place it on top of or overlapping any existing furniture`
+    : "Place the furniture in an open, empty area of the room. Do NOT place it on top of or overlapping any existing furniture";
 
   // Build prompt for furniture editing with reference
   const enhancedPrompt = productImageUrl 
     ? [
-        "Image 1 is the room base - preserve all existing elements exactly",
-        `Image 2 shows the ${prompt} to add`,
-        `Seamlessly integrate the ${prompt} into the room's largest open floor area`,
-        `Orient the ${prompt} to face toward the camera/viewer - front side visible, not sideways`,
-        `If it's a sofa/chair/bed: align parallel to the back wall, facing forward into the room`,
-        `If it's a table/desk: align parallel or perpendicular to walls, not at angles`,
-        `Place flat on the floor plane, matching the room's exact perspective and depth`,
-        `Follow the room's vanishing point - the ${prompt} should recede naturally with the room`,
-        `Scale realistically proportional to existing furniture and room size`,
-        `Position where this furniture type naturally belongs in this room layout`,
-        `Match lighting direction, shadow depth, intensity, and color temperature precisely`,
-        `Ensure zero overlap with existing furniture, walls, or objects`,
-        style ? `${style} interior style` : "",
+        "Image 1 is the base room - keep this room EXACTLY as is including all existing furniture, walls, floor, lighting",
+        `Image 2 shows ${prompt} - extract ONLY this single furniture item from image 2`,
+        placementInstruction,
+        "CRITICAL: Find an EMPTY space in the room where no furniture currently exists",
+        "Do NOT move, remove, or alter any furniture already present in image 1",
+        "Match the room's perspective vanishing point, floor plane, and scale",
+        "Ensure furniture sits flat on the floor, aligned with walls and architecture",
+        "Match lighting direction, shadow angles, and color temperature of the room",
+        "Maintain the original image resolution and quality",
+        style ? `${style} interior design style` : "",
       ].filter(Boolean).join(". ")
     : [
         prompt,
-        "Natural placement aligned with walls",
-        "Match room lighting",
+        "Natural placement with proper perspective",
+        "Match existing room lighting",
         style ? `${style} style` : "",
       ].filter(Boolean).join(", ");
 
+  console.log(`🖼️ Generating with nano-banana/edit:`);
+  console.log(`   📍 Base room: ${imageUrl.substring(0, 100)}...`);
+  if (productImageUrl) console.log(`   🛋️ Reference product: ${productImageUrl.substring(0, 100)}...`);
+  console.log(`   💬 Prompt: ${enhancedPrompt.substring(0, 150)}...`);
+
   try {
-    // Convert data URIs to fal.ai compatible URLs (upload if needed)
-    console.log(`🔄 Ensuring images are fal.ai compatible...`);
-    const roomImageUrl = await ensureFalCompatibleUrl(imageUrl, falApiKey);
-    const productUrl = productImageUrl ? await ensureFalCompatibleUrl(productImageUrl, falApiKey) : undefined;
+    // Upload images to fal.ai storage via SDK
+    console.log(`🔄 Uploading images to fal.ai storage...`);
+    const roomImageUrl = await uploadToFalStorage(imageUrl);
+    const productUrl = productImageUrl ? await uploadToFalStorage(productImageUrl) : undefined;
     
     const images = productUrl ? [roomImageUrl, productUrl] : [roomImageUrl];
     
     console.log(`📤 Sending ${images.length} images to fal.ai nano-banana/edit`);
     console.log(`   Image 1 (room): ${roomImageUrl}`);
     if (productUrl) console.log(`   Image 2 (product): ${productUrl}`);
-    
-    const response = await fetch("https://fal.run/fal-ai/nano-banana/edit", {
-      method: "POST",
-      headers: {
-        "Authorization": `Key ${falApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        image_urls: images, // Array: [room, product]
+
+    configureFal();
+    const result = await fal.run("fal-ai/nano-banana/edit", {
+      input: {
+        image_urls: images,
         prompt: enhancedPrompt,
-        guidance_scale: 3.5,
-        num_inference_steps: 30,
-        strength: 0.5, // Balance between preserving room and adding furniture
         num_images: 1,
-        enable_safety_checker: true,
-      }),
+      },
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`fal.ai API error: ${error}`);
-    }
-
-    const result = await response.json();
-    
-    console.log(`✅ fal.ai response received:`, result.images ? `${result.images.length} image(s) generated` : 'ERROR: no images in response');
-    if (result.images?.[0]) {
-      console.log(`   🎨 Result URL: ${result.images[0].url}`);
+    const data = result.data as any;
+    console.log(`✅ fal.ai response received:`, data.images ? `${data.images.length} image(s) generated` : 'ERROR: no images in response');
+    if (data.images?.[0]) {
+      console.log(`   🎨 Result URL: ${data.images[0].url}`);
     }
     
     console.log(`✅ Generated successfully in ${Date.now() - startTime}ms`);
     
     return {
-      furnishedImageUrl: result.images[0].url,
+      furnishedImageUrl: data.images[0].url,
       processingTime: Date.now() - startTime,
     };
   } catch (error) {
@@ -237,11 +173,7 @@ export async function generateRoomImage({
   prompt,
   style,
 }: Omit<FalImageEditRequest, "imageUrl">): Promise<FalImageEditResponse> {
-  const falApiKey = process.env.FAL_API_KEY;
-  
-  if (!falApiKey) {
-    throw new Error("FAL_API_KEY not configured");
-  }
+  configureFal();
 
   const startTime = Date.now();
 
@@ -254,33 +186,24 @@ export async function generateRoomImage({
   ].join(", ");
 
   try {
-    const response = await fetch("https://fal.run/fal-ai/flux-pro/v1.1-ultra", {
-      method: "POST",
-      headers: {
-        "Authorization": `Key ${falApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const result = await fal.run("fal-ai/flux-pro/v1.1-ultra", {
+      input: {
         prompt: enhancedPrompt,
-        image_size: "landscape_16_9",
+        aspect_ratio: "16:9",
         num_images: 1,
         enable_safety_checker: true,
-      }),
+      },
     });
 
-    if (!response.ok) {
-      throw new Error(`fal.ai API error: ${response.statusText}`);
-    }
+    const data = result.data as any;
 
-    const result = await response.json();
-    
     return {
-      furnishedImageUrl: result.images[0].url,
+      furnishedImageUrl: data.images[0].url,
       processingTime: Date.now() - startTime,
     };
   } catch (error) {
     console.error("fal.ai image generation failed:", error);
-    
+
     // Fallback to Pollinations.ai
     const encodedPrompt = encodeURIComponent(enhancedPrompt);
     return {

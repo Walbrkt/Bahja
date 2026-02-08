@@ -1,7 +1,6 @@
 import "@/index.css";
-import { useState, useEffect } from "react";
-import { mountWidget, useSendFollowUpMessage, useFiles } from "skybridge/web";
-import { useOpenExternal } from "skybridge/web";
+import { useState } from "react";
+import { mountWidget, useSendFollowUpMessage } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
 
 interface IkeaProduct {
@@ -22,42 +21,15 @@ interface IkeaProduct {
 
 function InteriorArchitect() {
   const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
-  const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
+  const { data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
-  const openExternal = useOpenExternal();
   const sendFollowUpMessage = useSendFollowUpMessage();
-  const { upload, getDownloadUrl } = useFiles();
 
   const products = (responseMetadata?.products || callToolData?.meta?.products || []) as IkeaProduct[];
-  const mode = (responseMetadata?.mode || callToolData?.meta?.mode) as "needImage" | "selection" | "result" | undefined;
-  const storedRoomImage = uploadedImageUrl || (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
+  const mode = (responseMetadata?.mode || callToolData?.meta?.mode || "needImage") as "needImage" | "selection" | "result";
+  const storedRoomImage = (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
   const furnishedImageUrl = (responseMetadata?.furnishedImageUrl || callToolData?.meta?.furnishedImageUrl) as string | undefined;
-  const userPrompt = (responseMetadata?.userPrompt || callToolData?.meta?.userPrompt) as string | undefined;
   const isLoading = isPending || isCallPending;
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      // Upload file and get downloadable URL
-      const { fileId } = await upload(file);
-      const { downloadUrl } = await getDownloadUrl({ fileId });
-      
-      setUploadedImageUrl(downloadUrl);
-      
-      // Send message asking what furniture they want
-      sendFollowUpMessage(`I uploaded a room image: ${downloadUrl}\n\nWhat furniture would you like to add to this room?`);
-    } catch (error) {
-      console.error("Upload failed:", error);
-      alert("Failed to upload image. Please try again.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   // Debug logging
   console.log("Widget State:", {
@@ -79,9 +51,8 @@ function InteriorArchitect() {
         `Generate room with this furniture:\n\n` +
         `Product: ${product.name}\n` +
         `Product Image: ${product.imageUrl}\n` +
-        `Product ID: ${product.id}\n` +
-        (userPrompt ? `User wants: ${userPrompt}\n` : '') +
-        `\nUse the room image already provided and add this furniture to it.`
+        `Product ID: ${product.id}\n\n` +
+        `Use the room image already provided and add this furniture to it.`
       );
     } catch (error) {
       console.error("Error:", error);
@@ -90,52 +61,13 @@ function InteriorArchitect() {
     }
   };
 
-  // Always show upload UI first if no image is uploaded
-  if (!storedRoomImage && !uploadedImageUrl) {
+  // Need image from chat
+  if (mode === "needImage" && !storedRoomImage) {
     return (
       <div className="app">
         <div className="empty-state">
           <h2>🏠 Interior Architect</h2>
-          <p style={{ marginBottom: "24px", fontSize: "16px" }}>Start by uploading a room image</p>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            disabled={isUploading}
-            style={{
-              padding: "12px 24px",
-              fontSize: "16px",
-              cursor: isUploading ? "not-allowed" : "pointer",
-              borderRadius: "8px",
-              border: "2px solid #3b82f6",
-              backgroundColor: isUploading ? "#e5e7eb" : "white",
-            }}
-          />
-          {isUploading && <p style={{ marginTop: "12px", color: "#6b7280" }}>Uploading...</p>}
-        </div>
-      </div>
-    );
-  }
-
-  // Show waiting state after upload, before user responds with furniture request
-  if ((uploadedImageUrl || storedRoomImage) && (mode === "needImage" || !mode)) {
-    return (
-      <div className="app">
-        <div className="empty-state">
-          <h2>✅ Image Uploaded</h2>
-          <p>Tell me what furniture you'd like to add!</p>
-          {(uploadedImageUrl || storedRoomImage) && (
-            <img 
-              src={uploadedImageUrl || storedRoomImage} 
-              alt="Uploaded room" 
-              style={{ 
-                maxWidth: "400px", 
-                marginTop: "20px", 
-                borderRadius: "12px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-              }} 
-            />
-          )}
+          <p>Share a room image URL in the chat to get started</p>
         </div>
       </div>
     );
@@ -146,7 +78,7 @@ function InteriorArchitect() {
     return (
       <div className="app">
         <div className="empty-state">
-          <h2>🔄 Loading IKEA Catalogue...</h2>
+          <h2>🔄 Loading Furniture Catalogue...</h2>
         </div>
       </div>
     );
@@ -156,7 +88,7 @@ function InteriorArchitect() {
   if (mode === "selection" && products.length > 0 && !furnishedImageUrl) {
     return (
       <div className="app">
-        <div style={{ padding: "24px", maxWidth: "1800px", margin: "0 auto" }}>
+        <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
             <h2 style={{ fontSize: "28px", margin: "0 0 8px 0" }}>Choose Furniture to Add</h2>
             <p style={{ color: "#6b7280", fontSize: "15px" }}>Click any product to visualize it in your room</p>
@@ -320,7 +252,7 @@ function InteriorArchitect() {
 
     return (
       <div className="app">
-        <div style={{ padding: "24px", maxWidth: "1600px", margin: "0 auto" }}>
+        <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
           <div style={{
             backgroundColor: "white",
             borderRadius: "16px",
@@ -458,9 +390,16 @@ function InteriorArchitect() {
                       <div style={{ fontSize: "18px", fontWeight: 700, color: "#111827", marginBottom: "12px" }}>
                         {product.price}€
                       </div>
-                      <button
-                        onClick={() => openExternal(product.buyUrl)}
+                      <a
+                        href={product.buyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(product.buyUrl, "_blank", "noopener,noreferrer");
+                        }}
                         style={{
+                          display: "block",
                           width: "100%",
                           padding: "10px",
                           fontSize: "13px",
@@ -471,6 +410,9 @@ function InteriorArchitect() {
                           borderRadius: "8px",
                           cursor: "pointer",
                           transition: "all 0.2s",
+                          textAlign: "center",
+                          textDecoration: "none",
+                          boxSizing: "border-box",
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e5e7eb";
@@ -479,8 +421,8 @@ function InteriorArchitect() {
                           e.currentTarget.style.backgroundColor = "#f3f4f6";
                         }}
                       >
-                        Buy on IKEA →
-                      </button>
+                        Buy Now →
+                      </a>
                     </div>
                   </div>
                 ))}
