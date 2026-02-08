@@ -40,6 +40,8 @@ function InteriorArchitect() {
     productsCount: products.length,
     hasResponseMetadata: !!responseMetadata,
     hasCallToolData: !!callToolData,
+    responseMetadata_furnishedImageUrl: responseMetadata?.furnishedImageUrl ? String(responseMetadata.furnishedImageUrl).substring(0, 50) : 'none',
+    callToolData_furnishedImageUrl: callToolData?.meta?.furnishedImageUrl ? String(callToolData.meta.furnishedImageUrl).substring(0, 50) : 'none',
   });
 
   const handleProductSelect = async (product: IkeaProduct) => {
@@ -232,6 +234,19 @@ function InteriorArchitect() {
 
   // Show generated result - check mode OR furnishedImageUrl
   if (mode === "result" || furnishedImageUrl) {
+    // Safety check - ensure we have the image URL
+    if (!furnishedImageUrl) {
+      console.error("❌ Mode is 'result' but furnishedImageUrl is missing!");
+      return (
+        <div className="app">
+          <div className="empty-state">
+            <h2>⚠️ Image Not Found</h2>
+            <p>The generated image URL is missing. Please try again.</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="app">
         <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
