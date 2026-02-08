@@ -1025,31 +1025,15 @@ const server = new McpServer(
           paint = [...PAINT_CATALOG];
         }
 
-        // ── Use style-based Unsplash placeholder as hero ──
-        // Real AI image generation happens when user selects items and clicks "Generate"
-        // in the Visualize tab (via generate-room-image tool)
-        const styleImageMap: Record<string, string> = {
-          moroccan: "https://images.unsplash.com/photo-1604183645328-dac760db40b2?w=1024&h=768&fit=crop",
-          bohemian: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1024&h=768&fit=crop",
-          scandinavian: "https://images.unsplash.com/photo-1551874645-eab55a1356ba?w=1024&h=768&fit=crop",
-          minimal: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1024&h=768&fit=crop",
-          modern: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1024&h=768&fit=crop",
-          industrial: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1024&h=768&fit=crop",
-          classic: "https://images.unsplash.com/photo-1578500494198-246f612d03b3?w=1024&h=768&fit=crop",
-          french: "https://images.unsplash.com/photo-1505577058444-a3dab90d4253?w=1024&h=768&fit=crop",
-          japanese: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=1024&h=768&fit=crop",
-          tropical: "https://images.unsplash.com/photo-1540541338287-41700207dee6?w=1024&h=768&fit=crop",
-        };
-        const renderImageUrl = styleImageMap[style.toLowerCase()] || "https://images.unsplash.com/photo-1551874645-eab55a1356ba?w=1024&h=768&fit=crop";
+        // ── No hero image — user selects items first, then generates ──
+        // AI image generation happens when user clicks "Generate Room Image"
+        // in the widget (calls generate-room-image tool with selected items)
 
         const structuredContent = {
           roomDimensions: { width: roomWidth, length: roomLength, height: roomHeight },
           style,
           budget: budget || null,
           roomType: roomType || null,
-          renderImageUrl, // Style placeholder — user generates AI image after selecting items
-          fallbackImageUrl: renderImageUrl, // Same as render (both are Unsplash placeholders)
-          isFallbackImage: true, // Placeholder — AI generation happens via Visualize tab
           furnitureCount: furniture.length,
           paintCount: paint.length,
           furniture: furniture.map((f) => ({
@@ -1071,8 +1055,6 @@ const server = new McpServer(
         };
 
         const _meta = {
-          renderImageUrl, // Style placeholder
-          fallbackImageUrl: renderImageUrl,
           furniture: furniture.map((f) => ({
             id: f.id,
             name: f.name,

@@ -1,10 +1,9 @@
 import "@/index.css";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { mountWidget, useDisplayMode, createStore } from "skybridge/web";
 import { useOpenExternal } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
-import RoomViewer3D from "./room-viewer-3d";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -76,501 +75,103 @@ const useSelectionStore = createStore<SelectionState>((set) => ({
     })),
 }));
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Furniture Selection Card ────────────────────────────────────────────────
+// Compact card: image + info + select toggle. Click anywhere to select.
 
-function FurnitureCard({ item }: { item: FurnitureItem }) {
-  const { addItem, removeItem, selectedItems } = useSelectionStore();
-  const openExternal = useOpenExternal();
-  const selected = (selectedItems as SelectedItem[]).some((i) => i.id === item.id);
-
-  return (
-    <div
-      className={`item-card ${selected ? "item-card--selected" : ""}`}
-      data-llm={`Furniture: ${item.name}, €${item.price}, ${item.width}×${item.depth}×${item.height}cm, ${item.category}${selected ? " [SELECTED]" : ""}`}
-    >
-      <div className="item-card__image-wrapper">
-        <img src={item.imageUrl} alt={item.name} className="item-card__image" />
-        <span className="item-card__badge">{item.category}</span>
-      </div>
-      <div className="item-card__body">
-        <h3 className="item-card__title">{item.name}</h3>
-        <p className="item-card__desc">{item.description}</p>
-        <div className="item-card__meta">
-          <span className="item-card__price">€{item.price}</span>
-          <span className="item-card__dims">
-            {item.width}×{item.depth}×{item.height}cm
-          </span>
-        </div>
-        <div className="item-card__retailer">
-          {item.retailer}
-        </div>
-        <div className="item-card__actions">
-          <button
-            className={`btn ${selected ? "btn--danger" : "btn--primary"}`}
-            onClick={() =>
-              selected
-                ? removeItem(item.id)
-                : addItem({
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    currency: item.currency,
-                    type: "furniture",
-                    imageUrl: item.imageUrl,
-                    buyUrl: item.buyUrl,
-                    description: `${item.category} — ${item.width}×${item.depth}×${item.height}cm`,
-                    category: item.category,
-                    width: item.width,
-                    depth: item.depth,
-                    height: item.height,
-                  })
-            }
-          >
-            {selected ? "✕ Remove" : "＋ Select"}
-          </button>
-          <button className="btn btn--outline" onClick={() => openExternal(item.buyUrl)}>
-            🛒 Buy
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PaintCard({ item }: { item: PaintItem }) {
-  const { addItem, removeItem, selectedItems } = useSelectionStore();
-  const openExternal = useOpenExternal();
-  const selected = (selectedItems as SelectedItem[]).some((i) => i.id === item.id);
-
-  return (
-    <div
-      className={`item-card item-card--paint ${selected ? "item-card--selected" : ""}`}
-      data-llm={`Paint: ${item.name}, ${item.color}, ${item.finish}, €${item.price}${selected ? " [SELECTED]" : ""}`}
-    >
-      <div className="item-card__image-wrapper">
-        <div
-          className="item-card__color-swatch"
-          style={{ backgroundColor: item.colorHex }}
-        />
-        <span className="item-card__badge item-card__badge--paint">{item.finish}</span>
-      </div>
-      <div className="item-card__body">
-        <h3 className="item-card__title">{item.name}</h3>
-        <p className="item-card__desc">{item.description}</p>
-        <div className="item-card__meta">
-          <span className="item-card__price">€{item.price}</span>
-          <span className="item-card__dims">{item.coverage}</span>
-        </div>
-        <div className="item-card__color-info">
-          <span
-            className="item-card__color-dot"
-            style={{ backgroundColor: item.colorHex }}
-          />
-          {item.color} · {item.retailer}
-        </div>
-        <div className="item-card__actions">
-          <button
-            className={`btn ${selected ? "btn--danger" : "btn--primary"}`}
-            onClick={() =>
-              selected
-                ? removeItem(item.id)
-                : addItem({
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    currency: item.currency,
-                    type: "paint",
-                    imageUrl: item.imageUrl,
-                    buyUrl: item.buyUrl,
-                    description: `${item.color} ${item.finish} — ${item.coverage}`,
-                    colorHex: item.colorHex,
-                  })
-            }
-          >
-            {selected ? "✕ Remove" : "＋ Select"}
-          </button>
-          <button className="btn btn--outline" onClick={() => openExternal(item.buyUrl)}>
-            🛒 Buy
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SelectionPanel() {
-  const { selectedItems, removeItem } = useSelectionStore();
-  const openExternal = useOpenExternal();
-  const total = selectedItems.reduce((sum, i) => sum + i.price, 0);
-
-  if (selectedItems.length === 0) return null;
-
-  return (
-    <div
-      className="selection-panel"
-      data-llm={`Selected ${selectedItems.length} items, total €${total}`}
-    >
-      <h3 className="selection-panel__title">
-        🛍️ My Selections ({selectedItems.length})
-        <span className="selection-panel__total">€{total}</span>
-      </h3>
-      <div className="selection-panel__items">
-        {selectedItems.map((item) => (
-          <div key={item.id} className="selection-chip">
-            {item.type === "paint" && item.colorHex ? (
-              <div
-                className="selection-chip__color"
-                style={{ backgroundColor: item.colorHex }}
-              />
-            ) : (
-              <img src={item.imageUrl} alt={item.name} className="selection-chip__img" />
-            )}
-            <div className="selection-chip__info">
-              <span className="selection-chip__name">{item.name}</span>
-              <span className="selection-chip__detail">
-                €{item.price} · {item.description}
-              </span>
-            </div>
-            <div className="selection-chip__actions">
-              <button
-                className="btn btn--sm btn--outline"
-                onClick={() => openExternal(item.buyUrl)}
-                title="Buy"
-              >
-                🛒
-              </button>
-              <button
-                className="btn btn--sm btn--danger"
-                onClick={() => removeItem(item.id)}
-                title="Remove"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Visualize Tab (3D + AI regenerate) ──────────────────────────────────────
-
-function VisualizeTab({
-  roomWidth,
-  roomLength,
-  roomHeight,
-  style,
-  roomType,
-  onImageGenerated,
+function FurnitureSelectCard({
+  item,
+  selected,
+  onToggle,
 }: {
-  roomWidth: number;
-  roomLength: number;
-  roomHeight: number;
-  style: string;
-  roomType: string | null;
-  onImageGenerated?: (url: string) => void;
+  item: FurnitureItem;
+  selected: boolean;
+  onToggle: () => void;
 }) {
-  const { selectedItems } = useSelectionStore();
-  const [userPrompt, setUserPrompt] = useState("");
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
-  const [imageError, setImageError] = useState(false);
-  const [activeView, setActiveView] = useState<"3d" | "ai">("ai");
-
-  const {
-    callTool: callGenerateImage,
-    data: imageData,
-    isPending: isImagePending,
-  } = useCallTool("generate-room-image");
-
-  const selectedFurniture = selectedItems.filter((i) => i.type === "furniture");
-  const selectedPaint = selectedItems.find((i) => i.type === "paint");
-
-  // Category-based colors for 3D
-  const categoryColors: Record<string, string> = {
-    sofa: "#8B7355",
-    table: "#DEB887",
-    chair: "#CD853F",
-    shelf: "#F5F5DC",
-    lamp: "#FFD700",
-    rug: "#BC8F8F",
-    bed: "#D2B48C",
-    desk: "#A0522D",
-    armchair: "#8B4513",
-    mirror: "#C0C0C0",
-  };
-
-  const wallOffset = 10;
-  const centerX = roomWidth / 2;
-  const centerZ = roomLength / 2;
-
-  const furniturePlacements = selectedFurniture.map((item, i) => {
-    let x = 0;
-    let z = 0;
-    let rotation = 0;
-    const cat = item.category || "sofa";
-    const w = item.width || 100;
-    const d = item.depth || 60;
-
-    switch (cat) {
-      case "sofa":
-      case "bed":
-        x = centerX;
-        z = d / 2 + wallOffset;
-        break;
-      case "table":
-        x = centerX;
-        z = centerZ;
-        break;
-      case "desk":
-        x = roomWidth - d / 2 - wallOffset;
-        z = centerZ;
-        rotation = Math.PI / 2;
-        break;
-      case "chair":
-        x = centerX + 60;
-        z = centerZ + 40;
-        rotation = -Math.PI / 4;
-        break;
-      case "shelf":
-      case "mirror":
-        x = d / 2 + wallOffset;
-        z = 50 + i * 120;
-        rotation = Math.PI / 2;
-        break;
-      case "lamp":
-        x = roomWidth - 50;
-        z = wallOffset + 30;
-        break;
-      case "rug":
-        x = centerX;
-        z = centerZ;
-        break;
-      case "armchair":
-        x = roomWidth - w / 2 - wallOffset - 20;
-        z = d / 2 + wallOffset + 20;
-        rotation = -Math.PI / 6;
-        break;
-      default:
-        x = wallOffset + 60 + i * 80;
-        z = wallOffset + 60;
-    }
-
-    return {
-      id: item.id,
-      name: item.name,
-      category: cat,
-      width: item.width || 100,
-      depth: item.depth || 60,
-      height: item.height || 80,
-      x,
-      y: (item.height || 80) / 2,
-      z,
-      color: categoryColors[cat] || "#999999",
-      rotation,
-    };
-  });
-
-  const roomConfig = {
-    width: roomWidth,
-    length: roomLength,
-    height: roomHeight,
-    wallColor: selectedPaint?.colorHex || "#FAFAFA",
-    floorColor: "#DEB887",
-  };
-
-  const handleGenerateImage = (customPrompt?: string) => {
-    const furnitureNames = selectedFurniture.map((f) => f.name);
-    setGeneratedImageUrl(null);
-    setImageError(false);
-    callGenerateImage({
-      roomWidth,
-      roomLength,
-      roomHeight,
-      style,
-      furnitureNames: furnitureNames.length > 0 ? furnitureNames : ["minimal furniture"],
-      paintColor: selectedPaint?.description?.split(" ")[0] || undefined,
-      paintHex: selectedPaint?.colorHex || undefined,
-      roomType: roomType || "room",
-      userPrompt: customPrompt || userPrompt || undefined,
-    });
-  };
-
-  useEffect(() => {
-    if (imageData && !isImagePending) {
-      const sc = imageData.structuredContent as Record<string, unknown> | undefined;
-      const url = sc?.imageUrl;
-      if (url && typeof url === "string") {
-        setGeneratedImageUrl(url);
-        onImageGenerated?.(url);
-      }
-    }
-  }, [imageData, isImagePending]);
-
-  // Quick prompt suggestions based on style
-  const quickPrompts: Record<string, string[]> = {
-    moroccan: ["warm golden hour light", "brass chandelier shadows", "mint tea on brass table", "view of a riad courtyard"],
-    scandinavian: ["cozy winter light", "candles and wool blankets", "snowy window view", "hygge atmosphere"],
-    modern: ["dramatic spotlight lighting", "city skyline view", "minimalist gallery wall", "sleek and luxurious"],
-    industrial: ["exposed brick warmth", "vintage Edison bulbs", "loft with city view", "raw urban energy"],
-    classic: ["crystal chandelier glow", "fireplace lit evening", "afternoon tea setting", "old world elegance"],
-    french: ["Parisian rooftop view", "morning light with croissants", "herringbone floor detail", "Belle Époque charm"],
-    bohemian: ["golden sunset light", "plants everywhere", "eclectic art gallery wall", "free-spirited cozy"],
-    japanese: ["zen garden view", "cherry blossom outside", "morning meditation space", "wabi-sabi tranquility"],
-    minimal: ["pure white serenity", "single dramatic shadow", "architectural light play", "absolute calm"],
-    tropical: ["ocean breeze curtains", "sunset terrace view", "lush jungle backdrop", "island luxury"],
-  };
-
-  const stylePrompts = quickPrompts[style.toLowerCase()] || quickPrompts.modern || [];
+  const openExternal = useOpenExternal();
 
   return (
-    <div className="visualize-tab" data-llm="3D viewer + AI image generation with selected items">
-      {/* View Toggle */}
-      <div className="rc-tabs" style={{ marginBottom: 12 }}>
-        <button
-          className={`rc-tab ${activeView === "ai" ? "rc-tab--active" : ""}`}
-          onClick={() => setActiveView("ai")}
-        >
-          🎨 AI Visualization
-        </button>
-        <button
-          className={`rc-tab ${activeView === "3d" ? "rc-tab--active" : ""}`}
-          onClick={() => setActiveView("3d")}
-        >
-          🧊 3D Preview
-        </button>
+    <div
+      className={`dr-card ${selected ? "dr-card--selected" : ""}`}
+      onClick={onToggle}
+      data-llm={`${item.name} €${item.price}${selected ? " [SELECTED]" : ""}`}
+    >
+      {/* Selection indicator */}
+      <div className="dr-card__check">
+        {selected ? "✓" : ""}
       </div>
 
-      {activeView === "3d" && (
-        <div className="visual-panel">
-          <div className="visual-panel__header">
-            <h3>Interactive 3D Room Preview</h3>
-            <p className="visual-panel__hint">
-              🖱️ Drag to rotate · Scroll to zoom · {selectedFurniture.length} item{selectedFurniture.length !== 1 ? "s" : ""} placed
-              {selectedPaint ? ` · Walls: ${selectedPaint.description?.split(" — ")[0]}` : ""}
-            </p>
-          </div>
-          {selectedFurniture.length === 0 ? (
-            <div className="visual-empty">
-              <p>👆 Select furniture items from the Furniture tab to see them in 3D</p>
-              <p className="visual-empty__sub">Selected paint colors will also appear on the walls</p>
-            </div>
-          ) : (
-            <RoomViewer3D room={roomConfig} furniture={furniturePlacements} />
-          )}
+      {/* Image */}
+      <div className="dr-card__img-wrap">
+        <img
+          src={item.imageUrl}
+          alt={item.name}
+          className="dr-card__img"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src =
+              "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200&h=200&fit=crop";
+          }}
+        />
+      </div>
+
+      {/* Info */}
+      <div className="dr-card__info">
+        <h4 className="dr-card__name">{item.name}</h4>
+        <p className="dr-card__desc">{item.description}</p>
+        <div className="dr-card__meta">
+          <span className="dr-card__price">€{item.price}</span>
+          <span className="dr-card__cat">{item.category}</span>
         </div>
-      )}
-
-      {activeView === "ai" && (
-        <div className="visual-panel">
-          <div className="visual-panel__header">
-            <h3>🎨 AI Room Visualization</h3>
-            <p className="visual-panel__hint">
-              Generate a photorealistic image with your selected furniture and paint
-            </p>
-          </div>
-
-          {/* Selected items summary */}
-          {(selectedFurniture.length > 0 || selectedPaint) && (
-            <div className="ai-selections-summary">
-              <p className="ai-selections-title">📦 Items to render:</p>
-              <div className="ai-prompt-tags">
-                {selectedFurniture.map((f) => (
-                  <span key={f.id} className="ai-tag">🪑 {f.name}</span>
-                ))}
-                {selectedPaint && (
-                  <span className="ai-tag" style={{ borderColor: selectedPaint.colorHex }}>
-                    🎨 {selectedPaint.description?.split(" — ")[0]}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Quick prompt tags */}
-          <div className="ai-prompt-section">
-            <div className="ai-prompt-tags">
-              {stylePrompts.map((tag) => (
-                <button
-                  key={tag}
-                  className="ai-tag"
-                  onClick={() => setUserPrompt((prev) => prev ? `${prev}, ${tag}` : tag)}
-                >
-                  + {tag}
-                </button>
-              ))}
-            </div>
-            <textarea
-              className="ai-prompt-input"
-              placeholder="Describe the mood… e.g., 'warm afternoon light, plants by the window, cozy atmosphere'"
-              value={userPrompt}
-              onChange={(e) => setUserPrompt(e.target.value)}
-              rows={2}
-            />
-            <button
-              className="btn btn--primary btn--generate"
-              onClick={() => handleGenerateImage()}
-              disabled={isImagePending}
-            >
-              {isImagePending ? (
-                <>
-                  <span className="btn-spinner" /> Generating...
-                </>
-              ) : generatedImageUrl ? (
-                "🔄 Regenerate Image"
-              ) : (
-                "✨ Generate AI Image"
-              )}
-            </button>
-          </div>
-
-          {isImagePending && (
-            <div className="ai-loading">
-              <div className="rc-loading__spinner" />
-              <p>🎨 fal.ai is painting your {style} room...</p>
-              <p className="ai-loading__sub">
-                {selectedFurniture.length > 0 
-                  ? `Including ${selectedFurniture.length} furniture piece${selectedFurniture.length > 1 ? "s" : ""}`
-                  : "Creating a beautiful visualization"}
-              </p>
-            </div>
-          )}
-
-          {generatedImageUrl && !isImagePending && (
-            <div className="ai-result">
-              <img
-                src={generatedImageUrl}
-                alt={`AI generated ${style} room`}
-                className="ai-result__image"
-                onError={() => setImageError(true)}
-              />
-              {imageError && (
-                <div className="ai-loading" style={{ padding: "2rem" }}>
-                  <p>⚠️ Image failed to load</p>
-                  <button className="btn btn--primary btn--sm" onClick={() => handleGenerateImage()}>
-                    🔄 Try Again
-                  </button>
-                </div>
-              )}
-              <div className="ai-result__caption">
-                <span className="ai-result__badge">✨ AI Generated · fal.ai</span>
-                {style.charAt(0).toUpperCase() + style.slice(1)} {roomType || "room"} · {selectedFurniture.length} items
-              </div>
-            </div>
-          )}
-
-          {!generatedImageUrl && !isImagePending && (
-            <div className="visual-empty">
-              <p>✨ Click "Generate AI Image" to create a photorealistic room visualization</p>
-              <p className="visual-empty__sub">
-                {selectedFurniture.length > 0
-                  ? `Your ${selectedFurniture.length} selected item${selectedFurniture.length > 1 ? "s" : ""} will be blended into the image`
-                  : "Select furniture items first for a personalized render"}
-              </p>
-            </div>
-          )}
+        <div className="dr-card__dims">
+          {item.width}×{item.depth}×{item.height}cm · {item.retailer}
         </div>
-      )}
+      </div>
+
+      {/* Buy link (stop propagation so it doesn't toggle selection) */}
+      <button
+        className="dr-card__buy"
+        onClick={(e) => {
+          e.stopPropagation();
+          openExternal(item.buyUrl);
+        }}
+        title={`Buy at ${item.retailer}`}
+      >
+        🛒
+      </button>
+    </div>
+  );
+}
+
+// ─── Paint Selection Card ────────────────────────────────────────────────────
+
+function PaintSelectCard({
+  item,
+  selected,
+  onToggle,
+}: {
+  item: PaintItem;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className={`dr-card dr-card--paint ${selected ? "dr-card--selected" : ""}`}
+      onClick={onToggle}
+    >
+      <div className="dr-card__check">
+        {selected ? "✓" : ""}
+      </div>
+      <div className="dr-card__img-wrap">
+        <div className="dr-card__swatch" style={{ backgroundColor: item.colorHex }} />
+      </div>
+      <div className="dr-card__info">
+        <h4 className="dr-card__name">{item.name}</h4>
+        <p className="dr-card__desc">{item.description}</p>
+        <div className="dr-card__meta">
+          <span className="dr-card__price">€{item.price}</span>
+          <span className="dr-card__cat">{item.finish}</span>
+        </div>
+        <div className="dr-card__dims">{item.color} · {item.coverage}</div>
+      </div>
     </div>
   );
 }
@@ -579,12 +180,40 @@ function VisualizeTab({
 
 function DesignRoom() {
   const { input, output, isPending, responseMetadata } = useToolInfo<"design-room">();
-  const { selectedItems } = useSelectionStore();
+  const { selectedItems, addItem, removeItem } = useSelectionStore();
   const [displayMode, setDisplayMode] = useDisplayMode();
-  const [activeTab, setActiveTab] = useState<"furniture" | "paint" | "3d">("furniture");
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
-  const [heroSrc, setHeroSrc] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<"furniture" | "paint">("furniture");
+  const [showResult, setShowResult] = useState(false);
+
+  const {
+    callTool: callGenerateImage,
+    data: imageData,
+    isPending: isImagePending,
+  } = useCallTool("generate-room-image");
+
+  // Derived state
+  const selectedFurniture = useMemo(
+    () => selectedItems.filter((i) => i.type === "furniture"),
+    [selectedItems],
+  );
+  const selectedPaint = useMemo(
+    () => selectedItems.find((i) => i.type === "paint"),
+    [selectedItems],
+  );
+
+  // Listen for generated image result
+  useEffect(() => {
+    if (imageData && !isImagePending) {
+      const sc = imageData.structuredContent as Record<string, unknown> | undefined;
+      const url = sc?.imageUrl;
+      if (url && typeof url === "string") {
+        setGeneratedImageUrl(url);
+        setShowResult(true);
+      }
+    }
+  }, [imageData, isImagePending]);
 
   // Loading state
   if (isPending || !output) {
@@ -605,21 +234,76 @@ function DesignRoom() {
   }
 
   const meta = responseMetadata as {
-    renderImageUrl?: string;
-    fallbackImageUrl?: string;
     furniture: FurnitureItem[];
     paint: PaintItem[];
   };
 
-  // Set hero image source from structuredContent (primary) or _meta (fallback)
-  useEffect(() => {
-    const url = (output as any)?.renderImageUrl || meta?.renderImageUrl;
-    if (url && !heroSrc) {
-      setHeroSrc(url);
-    }
-  }, [(output as any)?.renderImageUrl, meta?.renderImageUrl]);
-
   const isFullscreen = displayMode === "fullscreen";
+
+  // Toggle furniture selection
+  const toggleFurniture = (item: FurnitureItem) => {
+    const isSelected = selectedItems.some((i) => i.id === item.id);
+    if (isSelected) {
+      removeItem(item.id);
+    } else {
+      addItem({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        currency: item.currency,
+        type: "furniture",
+        imageUrl: item.imageUrl,
+        buyUrl: item.buyUrl,
+        description: `${item.category} — ${item.width}×${item.depth}×${item.height}cm`,
+        category: item.category,
+        width: item.width,
+        depth: item.depth,
+        height: item.height,
+      });
+    }
+  };
+
+  // Toggle paint selection (only one at a time)
+  const togglePaint = (item: PaintItem) => {
+    const isSelected = selectedItems.some((i) => i.id === item.id);
+    if (isSelected) {
+      removeItem(item.id);
+    } else {
+      // Remove any other paint selection first
+      selectedItems.filter((i) => i.type === "paint").forEach((i) => removeItem(i.id));
+      addItem({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        currency: item.currency,
+        type: "paint",
+        imageUrl: item.imageUrl,
+        buyUrl: item.buyUrl,
+        description: `${item.color} ${item.finish} — ${item.coverage}`,
+        colorHex: item.colorHex,
+      });
+    }
+  };
+
+  // Generate the room image
+  const handleGenerate = () => {
+    const furnitureNames = selectedFurniture.map((f) => f.name);
+    setGeneratedImageUrl(null);
+    setImageError(false);
+    setShowResult(true); // Show the result section immediately (with loading)
+    callGenerateImage({
+      roomWidth: output.roomDimensions.width,
+      roomLength: output.roomDimensions.length,
+      roomHeight: output.roomDimensions.height,
+      style: output.style || "modern",
+      furnitureNames: furnitureNames.length > 0 ? furnitureNames : ["minimal furniture"],
+      paintColor: selectedPaint?.description?.split(" ")[0] || undefined,
+      paintHex: selectedPaint?.colorHex || undefined,
+      roomType: output.roomType || "room",
+    });
+  };
+
+  const totalPrice = selectedItems.reduce((sum, i) => sum + i.price, 0);
 
   return (
     <div className={`rc-root ${isFullscreen ? "rc-root--fullscreen" : ""}`}>
@@ -644,130 +328,176 @@ function DesignRoom() {
         </button>
       </header>
 
-      {/* ── Hero AI Image ── */}
-      {heroSrc && (
-        <div className="rc-hero" data-llm="Room preview — select furniture then generate AI image via Visualize tab">
-          {!imageLoaded && !imageError && (
-            <div className="rc-hero__loading">
+      {/* ── AI Generated Result (shows when image is generated) ── */}
+      {showResult && (
+        <div className="dr-result">
+          {isImagePending && (
+            <div className="dr-result__loading">
               <div className="rc-loading__spinner" />
-              <p>🎨 Loading room visualization…</p>
+              <p>🎨 fal.ai is painting your {output.style} room…</p>
+              <p className="dr-result__sub">
+                Including {selectedFurniture.length} furniture item{selectedFurniture.length !== 1 ? "s" : ""}
+                {selectedPaint ? ` · ${selectedPaint.description?.split(" — ")[0]} walls` : ""}
+              </p>
             </div>
           )}
-          <img
-            src={heroSrc}
-            alt={`AI visualization of ${output.style} ${output.roomType || "room"}`}
-            className={`rc-hero__image ${imageLoaded ? "rc-hero__image--visible" : ""}`}
-            onLoad={() => {
-              setImageLoaded(true);
-              setImageError(false);
-            }}
-            onError={() => {
-              // Try fallback if main image fails
-              const fallback = (output as any)?.fallbackImageUrl || meta?.fallbackImageUrl;
-              if (fallback && heroSrc !== fallback) {
-                setHeroSrc(fallback);
-              } else {
-                setImageError(true);
-                setImageLoaded(true);
-              }
-            }}
-          />
-          {imageLoaded && !imageError && (
-            <div className="rc-hero__caption">
-              <span className="rc-hero__badge">
-                {output.isFallbackImage && heroSrc === ((output as any)?.renderImageUrl || meta?.renderImageUrl)
-                  ? "🖼️ Style Preview" 
-                  : "✨ AI GENERATED · FAL.AI"}
-              </span>
-              {output.style?.charAt(0).toUpperCase()}{output.style?.slice(1)} {output.roomType || "room"} · {selectedItems.length} items selected
-            </div>
-          )}
-          {/* CTA: prompt user to select items and generate */}
-          {imageLoaded && !imageError && output.isFallbackImage && heroSrc === ((output as any)?.renderImageUrl || meta?.renderImageUrl) && (
-            <div className="rc-hero__cta">
-              <p>👇 Select furniture from IKEA below, then go to <strong>✨ Visualize</strong> to generate your room with AI</p>
-              {selectedItems.filter(i => i.type === "furniture").length > 0 && (
-                <button
-                  className="btn btn--primary"
-                  onClick={() => setActiveTab("3d")}
-                >
-                  ✨ Generate with {selectedItems.filter(i => i.type === "furniture").length} selected item{selectedItems.filter(i => i.type === "furniture").length > 1 ? "s" : ""}
+          {generatedImageUrl && !isImagePending && (
+            <>
+              <img
+                src={generatedImageUrl}
+                alt={`AI generated ${output.style} room`}
+                className="dr-result__image"
+                onError={() => setImageError(true)}
+              />
+              {imageError && (
+                <div className="dr-result__loading" style={{ padding: "2rem" }}>
+                  <p>⚠️ Image failed to load</p>
+                  <button className="btn btn--primary btn--sm" onClick={handleGenerate}>
+                    🔄 Try Again
+                  </button>
+                </div>
+              )}
+              <div className="dr-result__caption">
+                <span className="dr-result__badge">✨ AI GENERATED · FAL.AI</span>
+                {output.style?.charAt(0).toUpperCase()}{output.style?.slice(1)}{" "}
+                {output.roomType || "room"} · {selectedFurniture.length} items
+              </div>
+              <div className="dr-result__actions">
+                <button className="btn btn--primary btn--sm" onClick={handleGenerate}>
+                  🔄 Regenerate
                 </button>
+                <button className="btn btn--outline btn--sm" onClick={() => setShowResult(false)}>
+                  ← Back to selection
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Step indicator ── */}
+      {!showResult && (
+        <div className="dr-steps">
+          <div className={`dr-step ${selectedFurniture.length > 0 ? "dr-step--done" : "dr-step--active"}`}>
+            <span className="dr-step__num">1</span>
+            <span className="dr-step__label">Select furniture & paint</span>
+          </div>
+          <div className="dr-step__arrow">→</div>
+          <div className={`dr-step ${selectedFurniture.length > 0 ? "dr-step--active" : ""}`}>
+            <span className="dr-step__num">2</span>
+            <span className="dr-step__label">Generate your room</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Selected items bar ── */}
+      {!showResult && selectedItems.length > 0 && (
+        <div className="dr-selected-bar">
+          <div className="dr-selected-bar__items">
+            {selectedItems.map((item) => (
+              <div key={item.id} className="dr-selected-bar__chip">
+                {item.type === "paint" && item.colorHex ? (
+                  <div className="dr-selected-bar__color" style={{ backgroundColor: item.colorHex }} />
+                ) : (
+                  <img src={item.imageUrl} alt={item.name} className="dr-selected-bar__img" />
+                )}
+                <span className="dr-selected-bar__name">{item.name}</span>
+                <button
+                  className="dr-selected-bar__remove"
+                  onClick={() => removeItem(item.id)}
+                  title="Remove"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="dr-selected-bar__summary">
+            <span className="dr-selected-bar__total">
+              {selectedItems.length} item{selectedItems.length !== 1 ? "s" : ""} · €{totalPrice}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Section tabs (furniture / paint) ── */}
+      {!showResult && (
+        <>
+          <div className="rc-tabs">
+            <button
+              className={`rc-tab ${activeSection === "furniture" ? "rc-tab--active" : ""}`}
+              onClick={() => setActiveSection("furniture")}
+            >
+              🪑 Furniture ({meta.furniture?.length || 0})
+            </button>
+            <button
+              className={`rc-tab ${activeSection === "paint" ? "rc-tab--active" : ""}`}
+              onClick={() => setActiveSection("paint")}
+            >
+              🎨 Paint ({meta.paint?.length || 0})
+            </button>
+          </div>
+
+          {/* Furniture Grid */}
+          {activeSection === "furniture" && (
+            <div className="dr-grid">
+              {(meta.furniture || []).map((item) => (
+                <FurnitureSelectCard
+                  key={item.id}
+                  item={item}
+                  selected={selectedItems.some((i) => i.id === item.id)}
+                  onToggle={() => toggleFurniture(item)}
+                />
+              ))}
+              {(!meta.furniture || meta.furniture.length === 0) && (
+                <p className="rc-empty">No furniture found matching your criteria.</p>
               )}
             </div>
           )}
-          {imageError && (
-            <div className="rc-hero__loading" style={{ minHeight: 120 }}>
-              <p>⚠️ Image could not be loaded</p>
-              <p className="ai-loading__sub">Switch to the 3D View tab to generate a new visualization</p>
+
+          {/* Paint Grid */}
+          {activeSection === "paint" && (
+            <div className="dr-grid">
+              {(meta.paint || []).map((item) => (
+                <PaintSelectCard
+                  key={item.id}
+                  item={item}
+                  selected={selectedItems.some((i) => i.id === item.id)}
+                  onToggle={() => togglePaint(item)}
+                />
+              ))}
+              {(!meta.paint || meta.paint.length === 0) && (
+                <p className="rc-empty">No paint options found matching your criteria.</p>
+              )}
             </div>
           )}
-        </div>
+        </>
       )}
 
-      {/* Selections */}
-      <SelectionPanel />
-
-      {/* Tabs */}
-      <div className="rc-tabs">
-        <button
-          className={`rc-tab ${activeTab === "furniture" ? "rc-tab--active" : ""}`}
-          onClick={() => setActiveTab("furniture")}
-        >
-          🪑 Furniture ({output.furnitureCount})
-        </button>
-        <button
-          className={`rc-tab ${activeTab === "paint" ? "rc-tab--active" : ""}`}
-          onClick={() => setActiveTab("paint")}
-        >
-          🎨 Paint ({output.paintCount})
-        </button>
-        <button
-          className={`rc-tab ${activeTab === "3d" ? "rc-tab--active" : ""}`}
-          onClick={() => setActiveTab("3d")}
-        >
-          ✨ Visualize
-        </button>
-      </div>
-
-      {/* Furniture Grid */}
-      {activeTab === "furniture" && (
-        <div className="rc-grid">
-          {meta.furniture.map((item) => (
-            <FurnitureCard key={item.id} item={item} />
-          ))}
-          {meta.furniture.length === 0 && (
-            <p className="rc-empty">No furniture found matching your criteria.</p>
-          )}
+      {/* ── Floating Generate Button ── */}
+      {!showResult && selectedFurniture.length > 0 && (
+        <div className="dr-generate-bar">
+          <div className="dr-generate-bar__info">
+            <span className="dr-generate-bar__count">
+              🪑 {selectedFurniture.length} furniture
+              {selectedPaint ? " · 🎨 1 paint" : ""}
+            </span>
+            <span className="dr-generate-bar__price">€{totalPrice}</span>
+          </div>
+          <button
+            className="btn btn--primary dr-generate-bar__btn"
+            onClick={handleGenerate}
+            disabled={isImagePending}
+          >
+            {isImagePending ? (
+              <>
+                <span className="btn-spinner" /> Generating…
+              </>
+            ) : (
+              <>✨ Generate Room Image</>
+            )}
+          </button>
         </div>
-      )}
-
-      {/* Paint Grid */}
-      {activeTab === "paint" && (
-        <div className="rc-grid">
-          {meta.paint.map((item) => (
-            <PaintCard key={item.id} item={item} />
-          ))}
-          {meta.paint.length === 0 && (
-            <p className="rc-empty">No paint options found matching your criteria.</p>
-          )}
-        </div>
-      )}
-
-      {/* 3D View */}
-      {activeTab === "3d" && (
-        <VisualizeTab
-          roomWidth={output.roomDimensions.width}
-          roomLength={output.roomDimensions.length}
-          roomHeight={output.roomDimensions.height}
-          style={output.style || "modern"}
-          roomType={output.roomType || null}
-          onImageGenerated={(url) => {
-            setHeroSrc(url);
-            setImageLoaded(false);
-            setImageError(false);
-          }}
-        />
       )}
     </div>
   );
