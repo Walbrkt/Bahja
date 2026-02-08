@@ -28,7 +28,7 @@ const server = new McpServer(
       inputSchema: {
         imageUrl: z.string().optional().describe("Room image URL from user's messages"),
         productImageUrl: z.string().optional().describe("INTERNAL: Extract 'Product Image:' URL when user sends 'Generate room with this furniture' message from widget"),
-        prompt: z.string().optional().describe("What furniture user wants to add (e.g., 'table and two chairs', 'sofa', 'bookshelf')"),
+        prompt: z.string().optional().describe("ONLY the furniture item name user wants (e.g., 'chandelier', 'table and two chairs', 'sofa', 'bookshelf'). Extract just the furniture name from user's message - if user says 'add a chandelier', use 'chandelier', NOT 'add a chandelier' or 'Add furniture to this room'"),
         style: z.string().optional().describe("Style filter"),
         budget: z.number().optional().describe("Budget in EUR"),
         selectedProductId: z.string().optional().describe("INTERNAL: Extract 'Product ID:' from widget-generated messages to trigger image generation"),
