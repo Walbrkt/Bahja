@@ -24,14 +24,14 @@ const server = new McpServer(
     },
     {
       description:
-        "Generate furnished room images. When user provides room image and selects furniture, extract: 1) Room image URL → imageUrl, 2) Product image URL → productImageUrl, 3) Product ID → selectedProductId, 4) Product name → prompt. ALWAYS extract and pass all these parameters when user says 'Generate room with' or provides product details.",
+        "Interior design tool that shows IKEA furniture catalogue. When user shares a room image URL and mentions furniture they want (e.g., 'add a table and two chairs'), immediately call this tool with imageUrl and prompt (furniture description) to show matching IKEA products in the widget. User will then click products in the widget to generate. DO NOT ask user for product details - the tool will show them the catalogue.",
       inputSchema: {
-        imageUrl: z.string().optional().describe("Room image URL from user's previous messages"),
-        productImageUrl: z.string().optional().describe("CRITICAL: Extract the 'Product Image:' URL from user's message when generating"),
-        prompt: z.string().optional().describe("Product name - extract from 'Product:' line in user message"),
+        imageUrl: z.string().optional().describe("Room image URL from user's messages"),
+        productImageUrl: z.string().optional().describe("INTERNAL: Extract 'Product Image:' URL when user sends 'Generate room with this furniture' message from widget"),
+        prompt: z.string().optional().describe("What furniture user wants to add (e.g., 'table and two chairs', 'sofa', 'bookshelf')"),
         style: z.string().optional().describe("Style filter"),
         budget: z.number().optional().describe("Budget in EUR"),
-        selectedProductId: z.string().optional().describe("CRITICAL: Extract 'Product ID:' from user's message when they request generation. This triggers the image generation."),
+        selectedProductId: z.string().optional().describe("INTERNAL: Extract 'Product ID:' from widget-generated messages to trigger image generation"),
       },
       annotations: {
         readOnlyHint: true,
