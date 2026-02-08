@@ -1305,13 +1305,14 @@ const server = new McpServer(
     "generate-room-image",
     {
       description:
-        "Generate an AI-rendered photorealistic image of a designed room using the selected furniture and paint colors. Uses AI image generation to create a visual preview of what the room will look like.",
+        "Generate an AI-rendered photorealistic image of a designed room. First generates the base room, then composites selected IKEA furniture product images into the scene using image-to-image AI editing.",
       inputSchema: {
         roomWidth: z.number().describe("Room width in cm"),
         roomLength: z.number().describe("Room length in cm"),
         roomHeight: z.number().describe("Room height in cm"),
         style: z.string().describe("Design style: moroccan, scandinavian, modern, industrial, bohemian, classic, minimal, french, japanese, tropical"),
         furnitureNames: z.array(z.string()).describe("Names of selected furniture items to include"),
+        furnitureImageUrls: z.array(z.string()).optional().describe("Image URLs of selected furniture products to composite into the room"),
         paintColor: z.string().optional().describe("Wall paint color name"),
         paintHex: z.string().optional().describe("Wall paint hex color"),
         roomType: z.string().optional().describe("Room type: living room, bedroom, office, dining room"),
@@ -1323,12 +1324,12 @@ const server = new McpServer(
         destructiveHint: false,
       },
     },
-    async ({ roomWidth, roomLength, roomHeight, style, furnitureNames, paintColor, paintHex, roomType, userPrompt }) => {
-      // Build a detailed, style-aware prompt for AI image generation
+    async ({ roomWidth, roomLength, roomHeight, style, furnitureNames, furnitureImageUrls, paintColor, paintHex, roomType, userPrompt }) => {
       const furnitureList = furnitureNames.length > 0
         ? furnitureNames.join(", ")
         : "minimal furniture";
 
+      // Build a detailed, style-aware prompt for the base room
       const prompt = buildImagePrompt({
         style,
         roomType,
@@ -1341,13 +1342,46 @@ const server = new McpServer(
         userPrompt: userPrompt || null,
       });
 
-      // Use fal.ai for AI image generation
+      // Step 1: Generate the base room image with flux-pro
       const fallbackUrl = "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1024&h=768&fit=crop";
-      const { url: imageUrl } = await generateImageWithFal(prompt, fallbackUrl);
+      const { url: baseRoomUrl } = await generateImageWithFal(prompt, fallbackUrl);
+
+      // Step 2: If we have product images, composite them into the room one at a time
+      // using editRoomImage (nano-banana image-to-image)
+      let finalImageUrl = baseRoomUrl;
+      const validImageUrls = (furnitureImageUrls || []).filter(
+        (u) => u && u.startsWith("http"),
+      );
+
+      if (validImageUrls.length > 0) {
+        console.log(`[generate-room-image] Compositing ${validImageUrls.length} product images into room…`);
+        let currentRoomUrl = baseRoomUrl;
+
+        // Composite up to 3 products (more would degrade quality)
+        for (let i = 0; i < Math.min(validImageUrls.length, 3); i++) {
+          const productUrl = validImageUrls[i];
+          const productName = furnitureNames[i] || "furniture";
+          try {
+            console.log(`[generate-room-image] Adding product ${i + 1}/${Math.min(validImageUrls.length, 3)}: ${productName}`);
+            const result = await editRoomImage({
+              imageUrl: currentRoomUrl,
+              productImageUrl: productUrl,
+              prompt: `Add this ${productName} furniture piece naturally into the room`,
+              style,
+            });
+            currentRoomUrl = result.furnishedImageUrl;
+            console.log(`[generate-room-image] ✅ Product ${i + 1} composited`);
+          } catch (err) {
+            console.error(`[generate-room-image] ❌ Failed to composite product ${i + 1}:`, err);
+            // Continue with current room if one product fails
+          }
+        }
+        finalImageUrl = currentRoomUrl;
+      }
 
       return {
         structuredContent: {
-          imageUrl,
+          imageUrl: finalImageUrl,
           prompt,
           style,
           roomType: roomType || "room",
@@ -1357,7 +1391,7 @@ const server = new McpServer(
         content: [
           {
             type: "text" as const,
-            text: `Generated AI room visualization: ${style} ${roomType || "room"} with ${furnitureList} and ${paintColor || "white"} walls. Image rendered via fal.ai.`,
+            text: `Generated AI room visualization: ${style} ${roomType || "room"} with ${furnitureList} and ${paintColor || "white"} walls.${validImageUrls.length > 0 ? ` Composited ${validImageUrls.length} real IKEA product image(s) into the scene.` : ""} Image rendered via fal.ai.`,
           },
         ],
       };

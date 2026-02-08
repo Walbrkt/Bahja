@@ -288,6 +288,7 @@ function DesignRoom() {
   // Generate the room image
   const handleGenerate = () => {
     const furnitureNames = selectedFurniture.map((f) => f.name);
+    const furnitureImageUrls = selectedFurniture.map((f) => f.imageUrl).filter(Boolean);
     setGeneratedImageUrl(null);
     setImageError(false);
     setShowResult(true); // Show the result section immediately (with loading)
@@ -297,6 +298,7 @@ function DesignRoom() {
       roomHeight: output.roomDimensions.height,
       style: output.style || "modern",
       furnitureNames: furnitureNames.length > 0 ? furnitureNames : ["minimal furniture"],
+      furnitureImageUrls: furnitureImageUrls.length > 0 ? furnitureImageUrls : undefined,
       paintColor: selectedPaint?.description?.split(" ")[0] || undefined,
       paintHex: selectedPaint?.colorHex || undefined,
       roomType: output.roomType || "room",

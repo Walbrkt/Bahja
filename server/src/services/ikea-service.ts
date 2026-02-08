@@ -88,8 +88,8 @@ export async function searchIkeaProducts({
 
     // Extract product details from Shopping results
     const products: IkeaProduct[] = [];
-    for (const result of ikeaResults) {
-      const product = extractProductFromShoppingResult(result);
+    for (let idx = 0; idx < ikeaResults.length; idx++) {
+      const product = extractProductFromShoppingResult(ikeaResults[idx], idx);
       if (product) {
         products.push(product);
       }
@@ -106,7 +106,7 @@ export async function searchIkeaProducts({
 /**
  * Extract IKEA product from Google Shopping result
  */
-function extractProductFromShoppingResult(result: any): IkeaProduct | null {
+function extractProductFromShoppingResult(result: any, index: number): IkeaProduct | null {
   try {
     const url = result.link || result.product_link || '';
     const title = result.title || '';
@@ -115,9 +115,9 @@ function extractProductFromShoppingResult(result: any): IkeaProduct | null {
     // Google Shopping provides product thumbnail
     const imageUrl = result.thumbnail || result.image || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop';
     
-    // Extract article number from URL if available
+    // Extract article number from URL if available — use index to guarantee uniqueness
     const articleMatch = url.match(/\/p\/[^/]+-(\d{8})\//);
-    const articleNumber = articleMatch ? articleMatch[1] : `IKEA-${Date.now()}`;
+    const articleNumber = articleMatch ? articleMatch[1] : `IKEA-${index}-${Math.random().toString(36).slice(2, 8)}`;
     
     // Clean product name
     const name = title.replace(/\s*-\s*IKEA.*$/i, '').replace(/\s*\|.*$/i, '').trim();
