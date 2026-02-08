@@ -31,18 +31,11 @@ function InteriorArchitect() {
   const { upload, getDownloadUrl } = useFiles();
 
   const products = (responseMetadata?.products || callToolData?.meta?.products || []) as IkeaProduct[];
-  const mode = (responseMetadata?.mode || callToolData?.meta?.mode || "needImage") as "needImage" | "selection" | "result";
+  const mode = (responseMetadata?.mode || callToolData?.meta?.mode) as "needImage" | "selection" | "result" | undefined;
   const storedRoomImage = uploadedImageUrl || (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
   const furnishedImageUrl = (responseMetadata?.furnishedImageUrl || callToolData?.meta?.furnishedImageUrl) as string | undefined;
   const userPrompt = (responseMetadata?.userPrompt || callToolData?.meta?.userPrompt) as string | undefined;
   const isLoading = isPending || isCallPending;
-
-  // Initialize widget on mount - call tool with no parameters to show upload UI
-  useEffect(() => {
-    if (!responseMetadata && !callToolData && !isLoading) {
-      callTool({});
-    }
-  }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -125,7 +118,7 @@ function InteriorArchitect() {
   }
 
   // Show waiting state after upload, before user responds with furniture request
-  if ((uploadedImageUrl || storedRoomImage) && mode === "needImage") {
+  if ((uploadedImageUrl || storedRoomImage) && (mode === "needImage" || !mode)) {
     return (
       <div className="app">
         <div className="empty-state">
