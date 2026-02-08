@@ -26,6 +26,8 @@ function InteriorArchitect() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [furnitureInput, setFurnitureInput] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const openExternal = useOpenExternal();
   const sendFollowUpMessage = useSendFollowUpMessage();
   const { upload, getDownloadUrl } = useFiles();
@@ -48,9 +50,6 @@ function InteriorArchitect() {
       const { downloadUrl } = await getDownloadUrl({ fileId });
       
       setUploadedImageUrl(downloadUrl);
-      
-      // Send message asking what furniture they want
-      sendFollowUpMessage(`I uploaded a room image: ${downloadUrl}\n\nWhat furniture would you like to add to this room?`);
     } catch (error) {
       console.error("Upload failed:", error);
       alert("Failed to upload image. Please try again.");
@@ -117,20 +116,70 @@ function InteriorArchitect() {
     );
   }
 
-  // Show waiting state after upload, before user responds with furniture request
-  if ((uploadedImageUrl || storedRoomImage) && (mode === "needImage" || !mode)) {
+  // After upload: show furniture input form in the widget
+  if ((uploadedImageUrl || storedRoomImage) && (mode === "needImage" || !mode) && products.length === 0) {
+    const handleFurnitureSubmit = () => {
+      if (!furnitureInput.trim()) return;
+      const roomUrl = uploadedImageUrl || storedRoomImage;
+      setIsSearching(true);
+      // Send explicit message with both imageUrl and prompt for the AI to call the tool
+      sendFollowUpMessage(
+        `Please call the interior-architect tool with these exact parameters:\n` +
+        `imageUrl: ${roomUrl}\n` +
+        `prompt: ${furnitureInput.trim()}\n` +
+        `\nSearch IKEA for "${furnitureInput.trim()}" and show me options for my room.`
+      );
+    };
+
     return (
       <div className="app">
         <div className="empty-state">
-          <h2>✅ Image Uploaded</h2>
-          <p>Tell me what furniture you'd like to add!</p>
+          <h2>✅ Room Image Ready</h2>
+          <p style={{ marginBottom: "16px", fontSize: "16px", color: "#6b7280" }}>What furniture would you like to add?</p>
+          
+          <div style={{ display: "flex", gap: "12px", maxWidth: "500px", width: "100%", marginBottom: "24px" }}>
+            <input
+              type="text"
+              value={furnitureInput}
+              onChange={(e) => setFurnitureInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleFurnitureSubmit()}
+              placeholder="e.g. red sofa, chandelier, wooden table..."
+              disabled={isSearching}
+              style={{
+                flex: 1,
+                padding: "14px 18px",
+                fontSize: "16px",
+                border: "2px solid #3b82f6",
+                borderRadius: "10px",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={handleFurnitureSubmit}
+              disabled={!furnitureInput.trim() || isSearching}
+              style={{
+                padding: "14px 28px",
+                fontSize: "16px",
+                fontWeight: 600,
+                backgroundColor: !furnitureInput.trim() || isSearching ? "#9ca3af" : "#4f46e5",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                cursor: !furnitureInput.trim() || isSearching ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {isSearching ? "Searching..." : "Search IKEA →"}
+            </button>
+          </div>
+
           {(uploadedImageUrl || storedRoomImage) && (
             <img 
               src={uploadedImageUrl || storedRoomImage} 
               alt="Uploaded room" 
               style={{ 
                 maxWidth: "400px", 
-                marginTop: "20px", 
                 borderRadius: "12px",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
               }} 
