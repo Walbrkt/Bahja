@@ -149,28 +149,20 @@ export async function editRoomImage({
   // Build prompt for furniture editing with reference
   const enhancedPrompt = productImageUrl 
     ? [
-        "Image 1 is the base room - keep this room exactly as is (walls, floor, lighting, furniture already there)",
-        `Image 2 shows the ${prompt} - extract ONLY this furniture item`,
-        `Add the ${prompt} from image 2 into the room from image 1`,
-        `Position the ${prompt} in the center of the image or in an empty space where it fits naturally`,
-        "Place it in a visible, prominent location - ideally in the center or focal point of the room",
-        "Avoid placing it behind existing furniture or in corners - choose open, central areas",
-        "Position it at a natural viewing distance (not too close to camera, not in foreground)",
-        `Match the perspective: the ${prompt} should recede with the room's vanishing point`,
-        `Align the ${prompt} parallel or perpendicular to the room's walls and architecture`,
-        `Ensure the ${prompt} sits flat on the floor plane, aligned with the room's grid and axis`,
-        `Rotate the ${prompt} to match the room's perspective lines and wall angles`,
-        `Scale proportionally: the ${prompt} size must match the room's scale and other objects`,
-        "Align with the floor plane and maintain vertical orientation",
-        "Match lighting direction, shadow angles, and color temperature of the room",
-        "Maintain the original image resolution and quality, only slightly enhance if needed",
-        `Do not change the room itself, only add the ${prompt} naturally integrated`,
-        style ? `${style} interior design style` : "",
+        "Image 1: base room (keep walls, floor, lighting as-is)",
+        `Image 2: reference ${prompt}`,
+        `Add the ${prompt} naturally into the room`,
+        `Position centrally or in empty space`,
+        `Orient parallel to walls - align with room architecture`,
+        `Place flat on floor, matching room perspective and vanishing point`,
+        `Scale proportionally to room size`,
+        `Match lighting and shadows`,
+        style ? `${style} style` : "",
       ].filter(Boolean).join(". ")
     : [
         prompt,
-        "Natural placement with proper perspective",
-        "Match existing room lighting",
+        "Natural placement aligned with walls",
+        "Match room lighting",
         style ? `${style} style` : "",
       ].filter(Boolean).join(", ");
 
