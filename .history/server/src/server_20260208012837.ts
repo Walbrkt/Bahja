@@ -26,8 +26,8 @@ const server = new McpServer(
       description:
         "Interior design widget. When user wants to add furniture to their room or clicks a product in the widget, call this tool. The tool shows IKEA products and generates visualizations of furniture added to rooms.",
       inputSchema: {
-        imageUrl: z.string().optional().describe("Room image URL - from user's previous message or from stored context"),
-        productImageUrl: z.string().optional().describe("Product image URL - extract from user message when they want to add furniture"),
+        imageUrl: z.string().optional().describe("Room image URL from user chat"),
+        productImageUrl: z.string().optional().describe("Product image URL from selected product"),
         prompt: z.string().optional().describe("Furniture to add (e.g., 'table and chairs')"),
         style: z.string().optional().describe("Style filter: scandinavian, modern, industrial, minimalist"),
         budget: z.number().optional().describe("Budget in EUR"),

@@ -23,7 +23,6 @@ interface IkeaProduct {
 function InteriorArchitect() {
   const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
   const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
-  const { sendMessage } = useSendMessage();
   const [isGenerating, setIsGenerating] = useState(false);
   const openExternal = useOpenExternal();
 
@@ -36,8 +35,12 @@ function InteriorArchitect() {
   const handleProductSelect = async (product: IkeaProduct) => {
     setIsGenerating(true);
     try {
-      // Send as a new chat message - creates new conversation turn
-      await sendMessage(`Generate room with this furniture: ${product.name} (${product.price}€). Product image: ${product.imageUrl}`);
+      await callTool({
+        imageUrl: storedRoomImage,
+        productImageUrl: product.imageUrl,
+        selectedProductId: product.id,
+        prompt: product.name,
+      });
     } finally {
       setIsGenerating(false);
     }
