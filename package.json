@@ -11,7 +11,6 @@
     "deploy": "alpic deploy"
   },
   "dependencies": {
-    "@fal-ai/client": "^1.9.0",
     "@modelcontextprotocol/sdk": "^1.25.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.4",

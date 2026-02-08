@@ -1,67 +1,33 @@
 import { McpServer } from "skybridge/server";
 import { z } from "zod";
-import { fal } from "@fal-ai/client";
-import { editRoomImage } from "./services/fal-service.js";
+import { editRoomImage, generateRoomImage } from "./services/fal-service.js";
 import { searchIkeaProducts } from "./services/ikea-service.js";
 
-// ─── fal.ai configuration ───────────────────────────────────────────────────
-
-fal.config({
-  credentials: process.env.FAL_KEY || "",
-});
-
 /**
- * Generate an image using fal.ai Recraft V3 model.
- * Recraft V3 is SOTA for prompt adherence and photorealistic interior design.
+ * Generate an image using fal.ai flux-pro model (same as interior-architect).
+ * Uses the generateRoomImage function from fal-service.ts.
  * Returns the raw fal.ai URL directly — whitelisted in CSP resourceDomains.
  */
 async function generateImageWithFal(
   prompt: string,
   fallbackUrl: string,
 ): Promise<{ url: string; isFallback: boolean }> {
-  const falKey = process.env.FAL_KEY;
-  if (!falKey) {
-    console.warn("[fal.ai] FAL_KEY not set — using fallback image");
-    return { url: fallbackUrl, isFallback: true };
-  }
-
-  // Ensure credentials are set (in case env loaded after fal.config)
-  fal.config({ credentials: falKey });
-
   try {
-    console.log("[fal.ai] Generating image with Recraft V3...");
+    console.log("[fal.ai] Generating image with flux-pro...");
     console.log("[fal.ai] Prompt:", prompt.substring(0, 300));
     
-    const result = await fal.subscribe("fal-ai/recraft/v3/text-to-image", {
-      input: {
-        prompt,
-        image_size: "landscape_4_3",
-        style: "realistic_image/natural_light",
-      },
-      logs: true,
-      onQueueUpdate: (update) => {
-        if (update.status === "IN_PROGRESS") {
-          console.log("[fal.ai] Generation in progress...");
-        }
-      },
-    });
-
-    console.log("[fal.ai] Raw result keys:", Object.keys(result || {}));
-
-    const imageUrl = (result as any)?.data?.images?.[0]?.url
-      || (result as any)?.images?.[0]?.url;
-
-    if (imageUrl && typeof imageUrl === "string") {
-      console.log("[fal.ai] ✅ Image generated:", imageUrl.substring(0, 100));
-      // Return the raw fal.ai URL — it's whitelisted in CSP resourceDomains
-      return { url: imageUrl, isFallback: false };
+    const result = await generateRoomImage({ prompt });
+    
+    if (result.furnishedImageUrl) {
+      console.log("[fal.ai] ✅ Image generated:", result.furnishedImageUrl.substring(0, 100));
+      // Check if it's a pollinations fallback
+      const isFallback = result.furnishedImageUrl.includes("pollinations.ai");
+      return { url: result.furnishedImageUrl, isFallback };
     }
 
-    console.warn("[fal.ai] No image URL in response. Result:", JSON.stringify(result).substring(0, 500));
     return { url: fallbackUrl, isFallback: true };
   } catch (error: any) {
     console.error("[fal.ai] ❌ Generation failed:", error?.message || error);
-    console.error("[fal.ai] Details:", JSON.stringify(error?.body || error?.response || {}).substring(0, 500));
     return { url: fallbackUrl, isFallback: true };
   }
 }
@@ -960,12 +926,16 @@ const server = new McpServer(
               "https://fal.run",
               "https://queue.fal.run",
               "https://rest.alpha.fal.ai",
+              "https://api.fal.ai",
             ],
             resourceDomains: [
               "https://images.unsplash.com",
               "https://v3b.fal.media",
+              "https://v3.fal.media",
               "https://fal.media",
               "https://storage.googleapis.com",
+              "https://encrypted-tbn0.gstatic.com",
+              "https://image.pollinations.ai",
             ],
             redirectDomains: [
               "https://www.ikea.com",
@@ -999,29 +969,54 @@ const server = new McpServer(
     },
     async ({ roomWidth, roomLength, roomHeight, style, budget, preferences, roomType }) => {
       try {
+        // ── Search real IKEA products via SerpAPI (Google Shopping) ──
         const furnitureQuery = `${style} ${roomType || ""} ${preferences || ""}`.trim();
-        let furniture = searchFurniture({
-          query: furnitureQuery,
-          style,
-          maxWidth: roomWidth,
-          maxDepth: roomLength,
-          budget: budget ? Math.round(budget * 0.7) : undefined,
-        });
+        let furniture: Array<{
+          id: string; name: string; description: string; price: number; currency: string;
+          width: number; depth: number; height: number; imageUrl: string; buyUrl: string;
+          retailer: string; category: string; style: string;
+        }> = [];
 
-        // Broaden search if too few results
-        if (furniture.length < 3) {
+        try {
+          const ikeaProducts = await searchIkeaProducts({
+            query: furnitureQuery,
+            style,
+            maxPrice: budget ? Math.round(budget * 0.7) : undefined,
+            limit: 12,
+          });
+          furniture = ikeaProducts.map(p => ({
+            ...p,
+            retailer: "IKEA",
+          }));
+          console.log(`[design-room] Found ${furniture.length} IKEA products via SERP`);
+        } catch (serpError) {
+          console.warn("[design-room] SERP search failed, falling back to curated catalog:", serpError);
+          // Fallback to curated catalog
           furniture = searchFurniture({
             query: furnitureQuery,
+            style,
+            maxWidth: roomWidth,
+            maxDepth: roomLength,
+            budget: budget ? Math.round(budget * 0.7) : undefined,
+          });
+        }
+
+        // If SERP returned too few results, supplement with curated catalog
+        if (furniture.length < 3) {
+          const catalogFurniture = searchFurniture({
+            query: furnitureQuery,
+            style,
             maxWidth: roomWidth,
             maxDepth: roomLength,
             budget,
           });
-        }
-        // If still too few, return all that fit
-        if (furniture.length < 2) {
-          furniture = FURNITURE_CATALOG.filter(
-            (f) => f.width <= roomWidth && f.depth <= roomLength,
-          );
+          // Merge without duplicates
+          const existingIds = new Set(furniture.map(f => f.id));
+          for (const cf of catalogFurniture) {
+            if (!existingIds.has(cf.id)) {
+              furniture.push(cf);
+            }
+          }
         }
 
         const paintQuery = `${preferences || ""} ${style}`.trim();
@@ -1166,32 +1161,71 @@ const server = new McpServer(
       },
     },
     async (params) => {
-      const items = searchFurniture(params);
-      return {
-        structuredContent: {
-          items: items.map((f) => ({
-            id: f.id,
-            name: f.name,
-            description: f.description,
-            price: f.price,
-            currency: f.currency,
-            dimensions: `${f.width}×${f.depth}×${f.height}cm`,
-            width: f.width,
-            depth: f.depth,
-            height: f.height,
-            imageUrl: f.imageUrl, // Raw Unsplash URL — whitelisted in CSP
-            buyUrl: f.buyUrl,
-            retailer: f.retailer,
-            category: f.category,
-          })),
-        },
-        content: [
-          {
-            type: "text" as const,
-            text: `Found ${items.length} furniture item(s) matching "${params.query}".`,
+      try {
+        // Use real IKEA search via SerpAPI (Google Shopping)
+        const searchQuery = [params.query, params.style, params.category].filter(Boolean).join(" ");
+        const items = await searchIkeaProducts({
+          query: searchQuery,
+          style: params.style,
+          maxPrice: params.budget,
+          limit: 12,
+        });
+
+        return {
+          structuredContent: {
+            items: items.map((f) => ({
+              id: f.id,
+              name: f.name,
+              description: f.description,
+              price: f.price,
+              currency: f.currency,
+              dimensions: `${f.width}×${f.depth}×${f.height}cm`,
+              width: f.width,
+              depth: f.depth,
+              height: f.height,
+              imageUrl: f.imageUrl,
+              buyUrl: f.buyUrl,
+              retailer: "IKEA",
+              category: f.category,
+            })),
           },
-        ],
-      };
+          content: [
+            {
+              type: "text" as const,
+              text: `Found ${items.length} IKEA furniture item(s) matching "${params.query}" via Google Shopping.`,
+            },
+          ],
+        };
+      } catch (error) {
+        // Fallback to curated catalog if SERP fails
+        console.warn("[search-furniture] SERP failed, falling back to curated catalog:", error);
+        const items = searchFurniture(params);
+        return {
+          structuredContent: {
+            items: items.map((f) => ({
+              id: f.id,
+              name: f.name,
+              description: f.description,
+              price: f.price,
+              currency: f.currency,
+              dimensions: `${f.width}×${f.depth}×${f.height}cm`,
+              width: f.width,
+              depth: f.depth,
+              height: f.height,
+              imageUrl: f.imageUrl,
+              buyUrl: f.buyUrl,
+              retailer: f.retailer,
+              category: f.category,
+            })),
+          },
+          content: [
+            {
+              type: "text" as const,
+              text: `Found ${items.length} furniture item(s) matching "${params.query}" (curated catalog).`,
+            },
+          ],
+        };
+      }
     },
   )
 
