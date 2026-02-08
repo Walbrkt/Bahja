@@ -1,6 +1,6 @@
 import "@/index.css";
 import { useState } from "react";
-import { mountWidget, useSendFollowUpMessage } from "skybridge/web";
+import { mountWidget, useSendFollowUpMessage, useFiles } from "skybridge/web";
 import { useOpenExternal } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
 
@@ -24,15 +24,40 @@ function InteriorArchitect() {
   const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
   const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const openExternal = useOpenExternal();
   const sendFollowUpMessage = useSendFollowUpMessage();
+  const { upload, getDownloadUrl } = useFiles();
 
   const products = (responseMetadata?.products || callToolData?.meta?.products || []) as IkeaProduct[];
   const mode = (responseMetadata?.mode || callToolData?.meta?.mode || "needImage") as "needImage" | "selection" | "result";
-  const storedRoomImage = (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
+  const storedRoomImage = uploadedImageUrl || (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
   const furnishedImageUrl = (responseMetadata?.furnishedImageUrl || callToolData?.meta?.furnishedImageUrl) as string | undefined;
   const userPrompt = (responseMetadata?.userPrompt || callToolData?.meta?.userPrompt) as string | undefined;
   const isLoading = isPending || isCallPending;
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      // Upload file and get downloadable URL
+      const { fileId } = await upload(file);
+      const { downloadUrl } = await getDownloadUrl({ fileId });
+      
+      setUploadedImageUrl(downloadUrl);
+      
+      // Send message with the uploaded image URL
+      sendFollowUpMessage(`I uploaded a room image: ${downloadUrl}`);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Debug logging
   console.log("Widget State:", {
@@ -71,7 +96,23 @@ function InteriorArchitect() {
       <div className="app">
         <div className="empty-state">
           <h2>🏠 Interior Architect</h2>
-          <p>Upload a room image in the chat or share an image URL to get started</p>
+          <p style={{ marginBottom: "16px" }}>Upload a room image to get started</p>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            disabled={isUploading}
+            style={{
+              padding: "12px 24px",
+              fontSize: "16px",
+              cursor: isUploading ? "not-allowed" : "pointer",
+              borderRadius: "8px",
+              border: "2px solid #3b82f6",
+              backgroundColor: isUploading ? "#e5e7eb" : "white",
+            }}
+          />
+          {isUploading && <p style={{ marginTop: "12px", color: "#6b7280" }}>Uploading...</p>}
+          <p style={{ marginTop: "16px", fontSize: "14px", color: "#6b7280" }}>Or upload an image in the chat</p>
         </div>
       </div>
     );

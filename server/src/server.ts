@@ -24,9 +24,9 @@ const server = new McpServer(
     },
     {
       description:
-        "Interior design tool that shows IKEA furniture catalogue. When user uploads an image to chat or pastes image URL and mentions furniture (e.g., [uploads image] 'add a red sofa'), immediately call this tool with imageUrl (extracted from user's image attachment or URL) and prompt. The image should be available in the conversation context - extract the image URL or data URI from the user's message attachments. DO NOT ask user to share URL if they uploaded - extract it directly.",
+        "Interior design tool that shows IKEA furniture catalogue. When user uploads image via widget (sends 'I uploaded a room image: <URL>') or in chat, and mentions furniture, immediately call this tool with imageUrl and prompt. Extract imageUrl from the upload message or chat attachments.",
       inputSchema: {
-        imageUrl: z.string().optional().describe("Room image extracted from: 1) User's uploaded image in chat (look for image attachment in message context and extract its URL/data URI), 2) User's pasted URL. When user uploads image to chat, extract the image data from the attachment. Support data: URIs, https:// URLs, and attachment references."),
+        imageUrl: z.string().optional().describe("Room image URL - extract from: 1) Widget message 'I uploaded a room image: <URL>' (extract the URL after the colon), 2) User's pasted URL, 3) Chat upload attachment. Support https:// URLs, data: URIs, and file:// URIs"),
         productImageUrl: z.string().optional().describe("INTERNAL: Extract 'Product Image:' URL when user sends 'Generate room with this furniture' message from widget"),
         prompt: z.string().optional().describe("The furniture description with adjectives (e.g., 'red sofa', 'modern chandelier', 'wooden table'). For initial user message: extract furniture description ('add a red sofa' → 'red sofa'). For widget messages: extract from 'User wants:' line which contains the original description."),
         style: z.string().optional().describe("Style filter"),
