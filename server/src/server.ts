@@ -918,7 +918,7 @@ const server = new McpServer(
     "design-room",
     {
       description:
-        "Interactive room designer. Shows furniture and paint recommendations that fit the user's room dimensions, style, and budget. Users can browse items, select them, and access buy links.",
+        "Interactive room designer. Shows furniture and paint recommendations that fit the user's room dimensions, style, and budget. Users can browse items, select them, and access buy links. ALWAYS use this as the FIRST tool when user wants to design a room. Include ALL furniture preferences in the 'preferences' field (e.g. 'sofas, chairs, tables, chandelier'). Do NOT call search-furniture separately — this tool handles all searching internally.",
       _meta: {
         ui: {
           csp: {
@@ -967,14 +967,14 @@ const server = new McpServer(
     },
     {
       description:
-        "Design a room: provide dimensions, style preferences, and budget. Returns matching furniture and paint options with images, prices, and buy links.",
+        "Design a room: provide dimensions, style preferences, and budget. Returns matching furniture and paint options with images, prices, and buy links. Put ALL desired furniture types in 'preferences' (e.g. 'sofas, armchairs, coffee table, chandelier, rug, mirror'). The tool will search for each category automatically.",
       inputSchema: {
         roomWidth: z.number().describe("Room width in cm"),
         roomLength: z.number().describe("Room length in cm"),
         roomHeight: z.number().describe("Room height in cm, default ~250"),
         style: z.string().describe("Design style: moroccan, scandinavian, modern, industrial, bohemian, classic, minimal, french, japanese, tropical"),
         budget: z.number().optional().describe("Total budget in EUR"),
-        preferences: z.string().optional().describe("Additional preferences: colors, vibe, specific items wanted"),
+        preferences: z.string().optional().describe("Comma-separated list of furniture types wanted. Example: 'sofas, armchairs, coffee table, chandelier, rug, mirror'. Each item will be searched separately for best results."),
         roomType: z.string().optional().describe("Room type: living room, bedroom, office, dining room"),
       },
       annotations: {
@@ -986,7 +986,11 @@ const server = new McpServer(
     async ({ roomWidth, roomLength, roomHeight, style, budget, preferences, roomType }) => {
       try {
         // ── Search real furniture products via SerpAPI (Google Shopping) ──
-        const furnitureQuery = `${style} ${roomType || ""} ${preferences || ""}`.trim();
+        // Parse preferences to extract individual furniture categories for targeted searches
+        const requestedCategories = preferences
+          ? preferences.split(/[,;&]+/).map(s => s.trim()).filter(Boolean)
+          : [];
+
         let furniture: Array<{
           id: string; name: string; description: string; price: number; currency: string;
           width: number; depth: number; height: number; imageUrl: string; buyUrl: string;
@@ -994,19 +998,54 @@ const server = new McpServer(
         }> = [];
 
         try {
-          const serpProducts = await searchFurnitureProducts({
-            query: furnitureQuery,
-            style,
-            maxPrice: budget ? Math.round(budget * 0.7) : undefined,
-            limit: 12,
-          });
-          furniture = serpProducts.map(p => ({
-            ...p,
-          }));
-          console.log(`[design-room] Found ${furniture.length} products via SERP`);
+          if (requestedCategories.length > 0) {
+            // ── Multi-category search: search for each requested category separately ──
+            console.log(`[design-room] Multi-category search: ${requestedCategories.join(", ")}`);
+            const perCategoryLimit = Math.max(3, Math.floor(20 / requestedCategories.length));
+            
+            const searchPromises = requestedCategories.map(async (category) => {
+              const query = `${style} ${category} ${roomType || ""}`.trim();
+              console.log(`[design-room] Searching category: "${category}" → query: "${query}"`);
+              try {
+                return await searchFurnitureProducts({
+                  query,
+                  style,
+                  maxPrice: budget ? Math.round(budget * 0.7) : undefined,
+                  limit: perCategoryLimit,
+                });
+              } catch (err) {
+                console.warn(`[design-room] Search failed for "${category}":`, err);
+                return [];
+              }
+            });
+
+            const results = await Promise.all(searchPromises);
+            const existingIds = new Set<string>();
+            for (const items of results) {
+              for (const item of items) {
+                if (!existingIds.has(item.id)) {
+                  existingIds.add(item.id);
+                  furniture.push(item);
+                }
+              }
+            }
+            console.log(`[design-room] Found ${furniture.length} total products across ${requestedCategories.length} categories`);
+          } else {
+            // ── Single generic search (no specific categories requested) ──
+            const furnitureQuery = `${style} ${roomType || ""} furniture`.trim();
+            const serpProducts = await searchFurnitureProducts({
+              query: furnitureQuery,
+              style,
+              maxPrice: budget ? Math.round(budget * 0.7) : undefined,
+              limit: 12,
+            });
+            furniture = serpProducts.map(p => ({ ...p }));
+            console.log(`[design-room] Found ${furniture.length} products via single SERP search`);
+          }
         } catch (serpError) {
           console.warn("[design-room] SERP search failed, falling back to curated catalog:", serpError);
           // Fallback to curated catalog
+          const furnitureQuery = `${style} ${roomType || ""} ${preferences || ""}`.trim();
           furniture = searchFurniture({
             query: furnitureQuery,
             style,
@@ -1018,6 +1057,7 @@ const server = new McpServer(
 
         // If SERP returned too few results, supplement with curated catalog
         if (furniture.length < 3) {
+          const furnitureQuery = `${style} ${roomType || ""} ${preferences || ""}`.trim();
           const catalogFurniture = searchFurniture({
             query: furnitureQuery,
             style,
@@ -1125,7 +1165,7 @@ const server = new McpServer(
     "search-furniture",
     {
       description:
-        "Search for furniture items by query, style, dimensions, budget, or category. Returns items with images, prices, dimensions, and buy links.",
+        "INTERNAL helper – search for furniture items. IMPORTANT: Prefer using the design-room widget instead, which already searches furniture and displays results in a visual grid. Only use search-furniture if design-room has already been shown and the user wants to add MORE items to an existing design.",
       inputSchema: {
         query: z.string().describe("Search query: style, type, or description"),
         style: z.string().optional().describe("Design style filter"),

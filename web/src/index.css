@@ -877,6 +877,48 @@
 
 /* ─── Furniture / Paint selection grid ─────────────────────────────────────── */
 
+/* In-widget search bar */
+.dr-search-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--surface, #f8f9fa);
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 10px;
+}
+
+.dr-search-bar__input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+  color: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.dr-search-bar__input:focus {
+  border-color: var(--primary, #4f46e5);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+
+.dr-search-bar__btn {
+  flex-shrink: 0;
+  min-width: 40px;
+}
+
+.dr-search-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+}
+
 .dr-grid {
   display: flex;
   flex-direction: column;

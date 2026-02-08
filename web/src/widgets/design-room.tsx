@@ -189,11 +189,21 @@ function DesignRoom() {
   const [activeSection, setActiveSection] = useState<"furniture" | "paint">("furniture");
   const [showResult, setShowResult] = useState(false);
 
+  // In-widget search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [extraFurniture, setExtraFurniture] = useState<FurnitureItem[]>([]);
+
   const {
     callTool: callGenerateImage,
     data: imageData,
     isPending: isImagePending,
   } = useCallTool("generate-room-image");
+
+  const {
+    callTool: callSearchFurniture,
+    data: searchData,
+    isPending: isSearchPending,
+  } = useCallTool("search-furniture");
 
   // Derived state
   const selectedFurniture = useMemo(
@@ -216,6 +226,30 @@ function DesignRoom() {
       }
     }
   }, [imageData, isImagePending]);
+
+  // Merge search results into extra furniture
+  useEffect(() => {
+    if (searchData && !isSearchPending) {
+      const sc = searchData.structuredContent as { items?: FurnitureItem[] } | undefined;
+      if (sc?.items && sc.items.length > 0) {
+        setExtraFurniture((prev) => {
+          const existingIds = new Set(prev.map((f) => f.id));
+          const newItems = sc.items!.filter((item) => !existingIds.has(item.id));
+          return [...prev, ...newItems];
+        });
+      }
+    }
+  }, [searchData, isSearchPending]);
+
+  // Handle in-widget search
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return;
+    callSearchFurniture({
+      query: searchQuery.trim(),
+      style: output?.style || undefined,
+      budget: output?.budget || undefined,
+    });
+  };
 
   // Loading state
   if (isPending || !output) {
@@ -447,7 +481,7 @@ function DesignRoom() {
               className={`rc-tab ${activeSection === "furniture" ? "rc-tab--active" : ""}`}
               onClick={() => setActiveSection("furniture")}
             >
-              🪑 Furniture ({meta.furniture?.length || 0})
+              🪑 Furniture ({(meta.furniture?.length || 0) + extraFurniture.length})
             </button>
             <button
               className={`rc-tab ${activeSection === "paint" ? "rc-tab--active" : ""}`}
@@ -459,19 +493,55 @@ function DesignRoom() {
 
           {/* Furniture Grid */}
           {activeSection === "furniture" && (
-            <div className="dr-grid">
-              {(meta.furniture || []).map((item) => (
-                <FurnitureSelectCard
-                  key={item.id}
-                  item={item}
-                  selected={selectedItems.some((i) => i.id === item.id)}
-                  onToggle={() => toggleFurniture(item)}
+            <>
+              {/* In-widget search bar */}
+              <div className="dr-search-bar">
+                <input
+                  type="text"
+                  className="dr-search-bar__input"
+                  placeholder="Search for more furniture (e.g. armchair, bookshelf, lamp…)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 />
-              ))}
-              {(!meta.furniture || meta.furniture.length === 0) && (
-                <p className="rc-empty">No furniture found matching your criteria.</p>
+                <button
+                  className="btn btn--primary btn--sm dr-search-bar__btn"
+                  onClick={handleSearch}
+                  disabled={isSearchPending || !searchQuery.trim()}
+                >
+                  {isSearchPending ? "⏳" : "🔍"}
+                </button>
+              </div>
+
+              {isSearchPending && (
+                <div className="dr-search-loading">
+                  <div className="rc-loading__spinner" style={{ width: 20, height: 20 }} />
+                  <span>Searching for "{searchQuery}"…</span>
+                </div>
               )}
-            </div>
+
+              <div className="dr-grid">
+                {(meta.furniture || []).map((item) => (
+                  <FurnitureSelectCard
+                    key={item.id}
+                    item={item}
+                    selected={selectedItems.some((i) => i.id === item.id)}
+                    onToggle={() => toggleFurniture(item)}
+                  />
+                ))}
+                {extraFurniture.map((item) => (
+                  <FurnitureSelectCard
+                    key={item.id}
+                    item={item}
+                    selected={selectedItems.some((i) => i.id === item.id)}
+                    onToggle={() => toggleFurniture(item)}
+                  />
+                ))}
+                {(!meta.furniture || meta.furniture.length === 0) && extraFurniture.length === 0 && (
+                  <p className="rc-empty">No furniture found matching your criteria.</p>
+                )}
+              </div>
+            </>
           )}
 
           {/* Paint Grid */}
