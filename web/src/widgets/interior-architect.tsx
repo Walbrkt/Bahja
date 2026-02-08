@@ -47,44 +47,27 @@ function InteriorArchitect() {
   });
 
   const handleProductSelect = async (product: IkeaProduct) => {
-    // Check if product already selected
-    const isAlreadySelected = selectedFurniture.some(f => f.id === product.id);
-    
-    let newSelection: IkeaProduct[];
-    if (isAlreadySelected) {
-      // Remove from selection
-      newSelection = selectedFurniture.filter(f => f.id !== product.id);
-    } else {
-      // Add to selection
-      newSelection = [...selectedFurniture, product];
-    }
-    
+    // Add this product to accumulated selections
+    const newSelection = [...selectedFurniture, product];
     setSelectedFurniture(newSelection);
-  };
-
-  const handleGenerateRoom = async () => {
-    if (selectedFurniture.length === 0) {
-      alert("Please select at least one furniture item");
-      return;
-    }
     
     try {
-      // Build furniture list message
-      const furnitureList = selectedFurniture
+      // Build furniture list message with all accumulated items
+      const furnitureList = newSelection
         .map((p, i) => `${i + 1}. ${p.name} (ID: ${p.id}, Image: ${p.imageUrl})`)
         .join("\n");
       
       sendFollowUpMessage(
-        `Generate room with these furniture items:\n\n${furnitureList}\n\n` +
-        `Add all ${selectedFurniture.length} furniture item(s) to the room image.`
+        `Add this furniture to the room:\n\n` +
+        `Product: ${product.name}\n` +
+        `Product Image: ${product.imageUrl}\n` +
+        `Product ID: ${product.id}\n\n` +
+        `Total items selected: ${newSelection.length}\n` +
+        `All furniture items:\n${furnitureList}`
       );
     } catch (error) {
       console.error("Error:", error);
     }
-  };
-
-  const handleClearSelection = () => {
-    setSelectedFurniture([]);
   };
 
   // Need image from chat
@@ -112,17 +95,15 @@ function InteriorArchitect() {
 
   // Show products to select
   if (mode === "selection" && products.length > 0 && !furnishedImageUrl) {
-    const isProductSelected = (productId: string) => selectedFurniture.some(f => f.id === productId);
-    
     return (
       <div className="app">
         <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
             <h2 style={{ fontSize: "28px", margin: "0 0 8px 0" }}>Choose Furniture to Add</h2>
-            <p style={{ color: "#6b7280", fontSize: "15px" }}>Click items to select, then generate your furnished room</p>
+            <p style={{ color: "#6b7280", fontSize: "15px" }}>Click any product to add it to your room</p>
             {selectedFurniture.length > 0 && (
               <p style={{ color: "#4f46e5", fontSize: "14px", fontWeight: 600, margin: "8px 0 0 0" }}>
-                {selectedFurniture.length} item{selectedFurniture.length !== 1 ? 's' : ''} selected
+                Currently in room: {selectedFurniture.map(f => f.name).join(", ")}
               </p>
             )}
           </div>
@@ -133,30 +114,32 @@ function InteriorArchitect() {
             gap: "24px",
           }}>
             {products.map((product) => {
-              const isSelected = isProductSelected(product.id);
+              const isSelected = selectedFurniture.some(f => f.id === product.id);
               return (
                 <div
                   key={product.id}
                   onClick={() => handleProductSelect(product)}
                   style={{
-                    border: isSelected ? "2px solid #4f46e5" : "1px solid #e5e7eb",
+                    border: isSelected ? "2px solid #10b981" : "1px solid #e5e7eb",
                     borderRadius: "12px",
                     overflow: "hidden",
-                    backgroundColor: isSelected ? "#f0f4ff" : "white",
+                    backgroundColor: isSelected ? "#f0fdf4" : "white",
                     transition: "all 0.2s",
-                    boxShadow: isSelected ? "0 8px 24px rgba(79,70,229,0.15)" : "0 2px 8px rgba(0,0,0,0.08)",
-                    cursor: "pointer",
+                    boxShadow: isSelected ? "0 8px 24px rgba(16,185,129,0.15)" : "0 2px 8px rgba(0,0,0,0.08)",
+                    cursor: isLoading ? "not-allowed" : "pointer",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-4px)";
-                    e.currentTarget.style.boxShadow = isSelected 
-                      ? "0 12px 32px rgba(79,70,229,0.2)"
-                      : "0 8px 24px rgba(0,0,0,0.12)";
+                    if (!isLoading) {
+                      e.currentTarget.style.transform = "translateY(-4px)";
+                      e.currentTarget.style.boxShadow = isSelected 
+                        ? "0 12px 32px rgba(16,185,129,0.2)"
+                        : "0 8px 24px rgba(0,0,0,0.12)";
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = "translateY(0)";
                     e.currentTarget.style.boxShadow = isSelected
-                      ? "0 8px 24px rgba(79,70,229,0.15)"
+                      ? "0 8px 24px rgba(16,185,129,0.15)"
                       : "0 2px 8px rgba(0,0,0,0.08)";
                   }}
                 >
@@ -180,7 +163,7 @@ function InteriorArchitect() {
                         right: "12px",
                         width: "32px",
                         height: "32px",
-                        backgroundColor: "#4f46e5",
+                        backgroundColor: "#10b981",
                         borderRadius: "50%",
                         display: "flex",
                         alignItems: "center",
@@ -231,94 +214,27 @@ function InteriorArchitect() {
                         fontSize: "15px",
                         padding: "14px",
                         fontWeight: 600,
-                        backgroundColor: isSelected ? "#10b981" : "#e5e7eb",
-                        color: isSelected ? "white" : "#6b7280",
+                        backgroundColor: isLoading ? "#9ca3af" : "#4f46e5",
+                        color: "white",
                         border: "none",
                         borderRadius: "8px",
                         cursor: isLoading ? "not-allowed" : "pointer",
                         transition: "all 0.2s",
                       }}
                       onMouseEnter={(e) => {
-                        if (!isLoading) {
-                          e.currentTarget.style.backgroundColor = isSelected ? "#059669" : "#d1d5db";
-                        }
+                        if (!isLoading) e.currentTarget.style.backgroundColor = "#4338ca";
                       }}
                       onMouseLeave={(e) => {
-                        if (!isLoading) {
-                          e.currentTarget.style.backgroundColor = isSelected ? "#10b981" : "#e5e7eb";
-                        }
+                        if (!isLoading) e.currentTarget.style.backgroundColor = "#4f46e5";
                       }}
                     >
-                      {isSelected ? "✓ Selected" : "Select"}
+                      {isLoading ? "Generating..." : "Add to Room →"}
                     </button>
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {selectedFurniture.length > 0 && (
-            <div style={{
-              position: "fixed",
-              bottom: "0",
-              left: "0",
-              right: "0",
-              backgroundColor: "white",
-              borderTop: "1px solid #e5e7eb",
-              padding: "20px",
-              display: "flex",
-              gap: "16px",
-              justifyContent: "center",
-              boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
-            }}>
-              <button
-                onClick={handleClearSelection}
-                disabled={isLoading}
-                style={{
-                  fontSize: "15px",
-                  padding: "14px 32px",
-                  fontWeight: 600,
-                  backgroundColor: "#f3f4f6",
-                  color: "#6b7280",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: isLoading ? "not-allowed" : "pointer",
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isLoading) e.currentTarget.style.backgroundColor = "#e5e7eb";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isLoading) e.currentTarget.style.backgroundColor = "#f3f4f6";
-                }}
-              >
-                Clear Selection
-              </button>
-              <button
-                onClick={handleGenerateRoom}
-                disabled={isLoading || selectedFurniture.length === 0}
-                style={{
-                  fontSize: "15px",
-                  padding: "14px 48px",
-                  fontWeight: 600,
-                  backgroundColor: isLoading || selectedFurniture.length === 0 ? "#9ca3af" : "#4f46e5",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: isLoading || selectedFurniture.length === 0 ? "not-allowed" : "pointer",
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isLoading && selectedFurniture.length > 0) e.currentTarget.style.backgroundColor = "#4338ca";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isLoading && selectedFurniture.length > 0) e.currentTarget.style.backgroundColor = "#4f46e5";
-                }}
-              >
-                {isLoading ? "Generating..." : `Generate Room with ${selectedFurniture.length} Item${selectedFurniture.length !== 1 ? 's' : ''} →`}
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );
