@@ -1,6 +1,6 @@
 import "@/index.css";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { mountWidget, useDisplayMode, createStore } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
 
@@ -193,6 +193,15 @@ function DesignRoom() {
   const [searchQuery, setSearchQuery] = useState("");
   const [extraFurniture, setExtraFurniture] = useState<FurnitureItem[]>([]);
 
+  // Auto-expand to fullscreen so the furniture grid is visible (once only)
+  const didAutoExpand = useRef(false);
+  useEffect(() => {
+    if (!didAutoExpand.current && output && !isPending) {
+      didAutoExpand.current = true;
+      setDisplayMode("fullscreen");
+    }
+  }, [output, isPending, setDisplayMode]);
+
   const {
     callTool: callGenerateImage,
     data: imageData,
@@ -271,10 +280,18 @@ function DesignRoom() {
     );
   }
 
-  const meta = responseMetadata as {
+  const meta = (responseMetadata ?? { furniture: [], paint: [] }) as {
     furniture: FurnitureItem[];
     paint: PaintItem[];
   };
+  // Defensive: ensure arrays exist even if _meta shape is unexpected
+  const furnitureItems = meta.furniture ?? [];
+  const paintItems = meta.paint ?? [];
+
+  // Debug: log what data the widget receives
+  console.log("[design-room widget] output:", output);
+  console.log("[design-room widget] responseMetadata:", responseMetadata);
+  console.log("[design-room widget] furnitureItems:", furnitureItems.length, "paintItems:", paintItems.length);
 
   const isFullscreen = displayMode === "fullscreen";
 
@@ -483,13 +500,13 @@ function DesignRoom() {
               className={`rc-tab ${activeSection === "furniture" ? "rc-tab--active" : ""}`}
               onClick={() => setActiveSection("furniture")}
             >
-              🪑 Furniture ({(meta.furniture?.length || 0) + extraFurniture.length})
+              🪑 Furniture ({furnitureItems.length + extraFurniture.length})
             </button>
             <button
               className={`rc-tab ${activeSection === "paint" ? "rc-tab--active" : ""}`}
               onClick={() => setActiveSection("paint")}
             >
-              🎨 Paint ({meta.paint?.length || 0})
+              🎨 Paint ({paintItems.length})
             </button>
           </div>
 
@@ -523,7 +540,7 @@ function DesignRoom() {
               )}
 
               <div className="dr-grid">
-                {(meta.furniture || []).map((item) => (
+                {furnitureItems.map((item) => (
                   <FurnitureSelectCard
                     key={item.id}
                     item={item}
@@ -539,7 +556,7 @@ function DesignRoom() {
                     onToggle={() => toggleFurniture(item)}
                   />
                 ))}
-                {(!meta.furniture || meta.furniture.length === 0) && extraFurniture.length === 0 && (
+                {furnitureItems.length === 0 && extraFurniture.length === 0 && (
                   <p className="rc-empty">No furniture found matching your criteria.</p>
                 )}
               </div>
@@ -549,7 +566,7 @@ function DesignRoom() {
           {/* Paint Grid */}
           {activeSection === "paint" && (
             <div className="dr-grid">
-              {(meta.paint || []).map((item) => (
+              {paintItems.map((item) => (
                 <PaintSelectCard
                   key={item.id}
                   item={item}
@@ -557,7 +574,7 @@ function DesignRoom() {
                   onToggle={() => togglePaint(item)}
                 />
               ))}
-              {(!meta.paint || meta.paint.length === 0) && (
+              {paintItems.length === 0 && (
                 <p className="rc-empty">No paint options found matching your criteria.</p>
               )}
             </div>

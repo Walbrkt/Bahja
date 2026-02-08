@@ -1413,63 +1413,71 @@ const server = new McpServer(
         console.log(`[generate-room-image] Compositing ${validImageUrls.length} product images into room…`);
         let currentRoomUrl = baseRoomUrl;
 
-        // ── Smart placement strategy ──
-        // Assign each item a different spatial zone based on its category & index
-        // so the AI places items in different parts of the room, avoiding overlap.
-        const placementZones = [
-          "in the center of the room, as the focal piece",
-          "against the left wall, leaving the center open",
-          "against the right wall, away from other furniture",
-          "against the back wall, in the background",
-          "in the left corner of the room",
-          "in the right corner of the room",
-          "near the window or light source",
-          "beside the main seating area",
+        // ── Smart placement strategy with UNIQUE zones ──
+        // Each item gets a unique spatial zone. Once a zone is used, it's removed.
+        // This prevents two items being placed in the same location.
+        
+        const availableZones = [
+          "in the center-left of the room on the floor, well away from all existing items",
+          "against the left wall, halfway back in the room",
+          "against the right wall, halfway back in the room",
+          "against the far back wall, centered",
+          "in the front-left area of the room, close to the viewer",
+          "in the front-right area of the room, close to the viewer",
+          "in the far-left corner of the room, tucked into the corner",
+          "in the far-right corner of the room, tucked into the corner",
+          "in the center-right of the room on the floor, well away from all existing items",
+          "in the front-center of the room, on the floor between the viewer and the back wall",
         ];
+        let nextZoneIndex = 0;
 
-        // Category-aware placement overrides
-        function getPlacementHint(name: string, category: string, index: number): string {
+        function getUniqueZone(): string {
+          if (nextZoneIndex < availableZones.length) {
+            return availableZones[nextZoneIndex++];
+          }
+          // If we've exhausted zones, generate a unique one
+          const positions = ["far left", "far right", "center-left", "center-right", "front-left", "front-right"];
+          return `${positions[nextZoneIndex++ % positions.length]} of the room, in an empty space not occupied by any other furniture`;
+        }
+
+        // Category-aware placement — each returns a UNIQUE hint
+        function getPlacementHint(name: string, category: string): string {
           const lowerCat = category.toLowerCase();
           const lowerName = name.toLowerCase();
 
-          // Large seating → center/focal point
-          if (lowerCat.includes("sofa") || lowerCat.includes("canapé") || lowerName.includes("sofa") || lowerName.includes("canapé")) {
-            return "in the center of the room as the main seating piece, facing the viewer";
-          }
-          // Tables → in front of or beside seating
-          if (lowerCat.includes("table") || lowerName.includes("table")) {
-            return "in front of the sofa or seating area, as a coffee table or side table";
-          }
-          // Chairs → beside or across from the main seating
-          if (lowerCat.includes("chair") || lowerCat.includes("fauteuil") || lowerName.includes("chair") || lowerName.includes("fauteuil") || lowerName.includes("chaise")) {
-            return "to the side of the main seating area, angled slightly toward the center of the room";
-          }
-          // Shelves/bookcases/wardrobes → against wall
-          if (lowerCat.includes("shelf") || lowerCat.includes("armoire") || lowerCat.includes("wardrobe") || lowerName.includes("shelf") || lowerName.includes("étagère") || lowerName.includes("armoire") || lowerName.includes("wardrobe")) {
-            return "flat against the back wall or side wall, standing upright";
-          }
-          // Lamps → beside seating or in corner
-          if (lowerCat.includes("lamp") || lowerName.includes("lamp") || lowerName.includes("lampe") || lowerName.includes("lampadaire")) {
-            return "next to the seating area or in a corner, standing on the floor";
-          }
-          // Rugs → on the floor, under/in front of seating
+          // Rugs go on the floor — no zone conflict
           if (lowerCat.includes("rug") || lowerCat.includes("tapis") || lowerName.includes("rug") || lowerName.includes("tapis")) {
-            return "on the floor, centered under the main seating arrangement";
+            return "flat on the floor, centered in an open area. Do NOT place on top of any furniture — only on the floor";
           }
-          // Beds → against wall
-          if (lowerCat.includes("bed") || lowerCat.includes("lit") || lowerName.includes("bed") || lowerName.includes("lit")) {
-            return "against the main wall, centered, as the room's focal piece";
-          }
-          // Desk → against wall or near window
-          if (lowerCat.includes("desk") || lowerCat.includes("bureau") || lowerName.includes("desk") || lowerName.includes("bureau")) {
-            return "against a wall, near a window or light source";
-          }
-          // Mirror → on wall
+          // Mirrors go on walls — no zone conflict
           if (lowerCat.includes("mirror") || lowerCat.includes("miroir") || lowerName.includes("mirror") || lowerName.includes("miroir")) {
-            return "hanging on the wall, at eye level, reflecting the room";
+            return "hanging on a wall at eye level. Do NOT place on the floor or on top of any furniture";
           }
-          // Fallback: cycle through zones to spread items out
-          return placementZones[index % placementZones.length];
+
+          // All other items get a unique spatial zone
+          const zone = getUniqueZone();
+          
+          // Add category-specific detail to the zone
+          if (lowerCat.includes("sofa") || lowerName.includes("sofa") || lowerName.includes("canapé") || lowerName.includes("banc")) {
+            return `${zone}. Place as a seating piece, sitting flat on the floor`;
+          }
+          if (lowerCat.includes("table") || lowerName.includes("table")) {
+            return `${zone}. Place as a table, all four legs on the floor, at natural table height`;
+          }
+          if (lowerCat.includes("chair") || lowerName.includes("chair") || lowerName.includes("chaise") || lowerName.includes("fauteuil") || lowerName.includes("tabouret")) {
+            return `${zone}. Place as a seat, all legs on the floor`;
+          }
+          if (lowerCat.includes("shelf") || lowerCat.includes("console") || lowerName.includes("shelf") || lowerName.includes("étagère") || lowerName.includes("console") || lowerName.includes("buffet")) {
+            return `against a wall, ${zone}. Place flat against the wall, standing upright on the floor`;
+          }
+          if (lowerCat.includes("lamp") || lowerName.includes("lamp") || lowerName.includes("lampe")) {
+            return `${zone}. Place standing upright on the floor`;
+          }
+          if (lowerCat.includes("pouf") || lowerName.includes("pouf")) {
+            return `${zone}. Place sitting on the floor as a low seat or ottoman`;
+          }
+          
+          return `${zone}. Place sitting naturally on the floor, upright`;
         }
 
         // Composite ALL selected products into the room
@@ -1477,13 +1485,13 @@ const server = new McpServer(
           const productUrl = validImageUrls[i];
           const productName = furnitureNames[i] || "furniture";
           const productCategory = furnitureCategories?.[i] || "furniture";
-          const placementHint = getPlacementHint(productName, productCategory, i);
+          const placementHint = getPlacementHint(productName, productCategory);
           try {
             console.log(`[generate-room-image] Adding product ${i + 1}/${validImageUrls.length}: ${productName} → ${placementHint}`);
             const result = await editRoomImage({
               imageUrl: currentRoomUrl,
               productImageUrl: productUrl,
-              prompt: `Add this ${productName} furniture piece naturally into the room`,
+              prompt: `Add ONLY this ONE item — ${productName} — into the room. Do NOT duplicate it. Do NOT add any other furniture. Keep ALL existing items EXACTLY as they are`,
               style,
               placementHint,
             });

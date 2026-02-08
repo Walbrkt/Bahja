@@ -91,21 +91,16 @@ export async function editRoomImage({
 
   // Build placement instruction — crucial for avoiding overlap
   const placementInstruction = placementHint
-    ? `Place the furniture ${placementHint}. Do NOT place it on top of or overlapping any existing furniture`
-    : "Place the furniture in an open, empty area of the room. Do NOT place it on top of or overlapping any existing furniture";
+    ? `PLACEMENT: ${placementHint}. CRITICAL: Do NOT place it on top of, overlapping, or touching any existing furniture. There must be visible floor space between this item and all other items`
+    : "PLACEMENT: In an open, empty area of the room with visible floor space between this item and all other items. Do NOT overlap any existing furniture";
 
   // Build prompt for furniture editing with reference
   const enhancedPrompt = productImageUrl 
     ? [
-        "Image 1 is the base room - keep this room EXACTLY as is including all existing furniture, walls, floor, lighting",
-        `Image 2 shows ${prompt} - extract ONLY this single furniture item from image 2`,
+        "Image 1 is the base room — preserve EVERY pixel of image 1 exactly, including ALL existing furniture, walls, floor, lighting, shadows",
+        `Image 2 shows the new item: ${prompt}. Extract ONLY this ONE item from image 2`,
         placementInstruction,
-        "CRITICAL: Find an EMPTY space in the room where no furniture currently exists",
-        "Do NOT move, remove, or alter any furniture already present in image 1",
-        "Match the room's perspective vanishing point, floor plane, and scale",
-        "Ensure furniture sits flat on the floor, aligned with walls and architecture",
-        "Match lighting direction, shadow angles, and color temperature of the room",
-        "Maintain the original image resolution and quality",
+        "ABSOLUTE RULES: 1) Do NOT remove or alter ANY existing furniture from image 1. 2) Do NOT stack or overlap the new item on existing furniture. 3) The new item must sit on the FLOOR with all legs/base touching the floor plane. 4) Scale the item realistically — no giant or tiny items. 5) Match perspective, lighting direction, and shadow angles of the room",
         style ? `${style} interior design style` : "",
       ].filter(Boolean).join(". ")
     : [
