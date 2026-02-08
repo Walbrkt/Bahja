@@ -166,11 +166,6 @@ export async function editRoomImage({
         style ? `${style} style` : "",
       ].filter(Boolean).join(", ");
 
-  console.log(`🖼️ Generating with nano-banana/edit:`);
-  console.log(`   📍 Base room: ${imageUrl.substring(0, 100)}...`);
-  if (productImageUrl) console.log(`   🛋️ Reference product: ${productImageUrl.substring(0, 100)}...`);
-  console.log(`   💬 Prompt: ${enhancedPrompt.substring(0, 150)}...`);
-
   try {
     // Convert data URIs to fal.ai compatible URLs (upload if needed)
     console.log(`🔄 Ensuring images are fal.ai compatible...`);

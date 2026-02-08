@@ -31,6 +31,7 @@ function InteriorArchitect() {
   const mode = (responseMetadata?.mode || callToolData?.meta?.mode || "needImage") as "needImage" | "selection" | "result";
   const storedRoomImage = (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
   const furnishedImageUrl = (responseMetadata?.furnishedImageUrl || callToolData?.meta?.furnishedImageUrl) as string | undefined;
+  const userPrompt = (responseMetadata?.userPrompt || callToolData?.meta?.userPrompt) as string | undefined;
   const isLoading = isPending || isCallPending;
 
   // Debug logging
@@ -53,8 +54,9 @@ function InteriorArchitect() {
         `Generate room with this furniture:\n\n` +
         `Product: ${product.name}\n` +
         `Product Image: ${product.imageUrl}\n` +
-        `Product ID: ${product.id}\n\n` +
-        `Use the room image already provided and add this furniture to it.`
+        `Product ID: ${product.id}\n` +
+        (userPrompt ? `User wants: ${userPrompt}\n` : '') +
+        `\nUse the room image already provided and add this furniture to it.`
       );
     } catch (error) {
       console.error("Error:", error);
