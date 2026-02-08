@@ -26,7 +26,7 @@ const server = new McpServer(
       description:
         "Interior design widget. CRITICAL: When user uploads/shares a room image, extract the image URL and pass it as imageUrl parameter. Call this tool immediately when user mentions furniture, decorating, or room design.",
       inputSchema: {
-        imageUrl: z.string().describe("REQUIRED: The image URL or data URI of the room photo. When user uploads an image in chat, you MUST pass it here. Look for image attachments/uploads in the conversation and extract the URL/data URI."),
+        imageUrl: z.string().optional().describe("CRITICAL: When user uploads/shares an image, extract the image URL from chat context and pass it here. Required for all operations. Can be https:// URL or data:image URI. If user uploaded an image in the conversation, YOU MUST extract and pass it."),
         productImageUrl: z.string().optional().describe("Product image URL from selected product"),
         prompt: z.string().optional().describe("Furniture to add (e.g., 'table and chairs')"),
         style: z.string().optional().describe("Style filter: scandinavian, modern, industrial, minimalist"),
@@ -39,7 +39,7 @@ const server = new McpServer(
         destructiveHint: false,
       },
     },
-    async ({ imageUrl, productImageUrl, prompt, style, budget, selectedProductId }) => {
+    async ({ imageUrl, productImageUrl, prompt, style, budget, selectedProductId }, context) => {
       try {
         console.log("\n" + "=".repeat(80));
         console.log("🔍 INTERIOR ARCHITECT TOOL CALLED");
@@ -55,14 +55,27 @@ const server = new McpServer(
         });
         console.log("=".repeat(80));
 
+        // Try to extract image from context if not provided
+        let extractedImageUrl = imageUrl;
+        if (!extractedImageUrl && context?.attachments) {
+          console.log("🔍 No imageUrl provided, checking context attachments...");
+          for (const attachment of context.attachments) {
+            if (attachment.mimeType?.startsWith('image/')) {
+              extractedImageUrl = attachment.uri || attachment.url;
+              console.log("✅ Found image in attachments:", extractedImageUrl?.substring(0, 100));
+              break;
+            }
+          }
+        }
+
         // PHASE 1: Need room image first
-        if (!imageUrl) {
+        if (!extractedImageUrl) {
           // Widget shows upload interface - just return empty state
-          console.log("❌ No image provided in imageUrl parameter");
+          console.log("❌ No image found in parameters or context");
           return {
             content: [{
               type: "text" as const,
-              text: "I need the room image URL. When the user uploads an image, please call this tool again and pass the image URL in the imageUrl parameter.",
+              text: "Please upload a room image so I can help you visualize furniture. You can upload directly in chat or use the widget above.",
             }],
             _meta: {
               mode: "needImage",
@@ -70,10 +83,10 @@ const server = new McpServer(
           };
         }
 
-        console.log("✅ Room image received:", imageUrl.substring(0, 100) + "...");
-        console.log("   Type:", imageUrl.startsWith('data:') ? 'DATA URI' : imageUrl.startsWith('http') ? 'URL' : 'UNKNOWN');
-        console.log("   Length:", imageUrl.length, "chars");
-        console.log("   Source: imageUrl parameter");
+        console.log("✅ Room image received:", extractedImageUrl.substring(0, 100) + "...");
+        console.log("   Type:", extractedImageUrl.startsWith('data:') ? 'DATA URI' : extractedImageUrl.startsWith('http') ? 'URL' : 'UNKNOWN');
+        console.log("   Length:", extractedImageUrl.length, "chars");
+        console.log("   Source:", imageUrl ? 'parameter' : 'context.attachments');
 
         // PHASE 2: Show catalogue (have imageUrl, no product selected yet)
         if (!selectedProductId) {
@@ -129,7 +142,7 @@ const server = new McpServer(
         // PHASE 3: Generate image immediately (have both imageUrl + selectedProductId)
         console.log(`🎨 Generating furnished room`);
         console.log(`   🖼️ Product image: ${productImageUrl}`);
-        console.log(`   🏠 Room image: ${imageUrl}`);
+        console.log(`   🏠 Room image: ${extractedImageUrl}`);
 
         const imagePrompt = prompt || "Add furniture to this room";
 
@@ -138,7 +151,7 @@ const server = new McpServer(
 
         if (process.env.FAL_API_KEY) {
           const result = await editRoomImage({
-            imageUrl,
+            imageUrl: extractedImageUrl,
             productImageUrl, // Use passed product image URL
             prompt: imagePrompt,
             style,

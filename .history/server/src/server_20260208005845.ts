@@ -26,7 +26,7 @@ const server = new McpServer(
       description:
         "Interior design widget. CRITICAL: When user uploads/shares a room image, extract the image URL and pass it as imageUrl parameter. Call this tool immediately when user mentions furniture, decorating, or room design.",
       inputSchema: {
-        imageUrl: z.string().describe("REQUIRED: The image URL or data URI of the room photo. When user uploads an image in chat, you MUST pass it here. Look for image attachments/uploads in the conversation and extract the URL/data URI."),
+        imageUrl: z.string().optional().describe("CRITICAL: When user uploads/shares an image, extract the image URL from chat context and pass it here. Required for all operations. Can be https:// URL or data:image URI. If user uploaded an image in the conversation, YOU MUST extract and pass it."),
         productImageUrl: z.string().optional().describe("Product image URL from selected product"),
         prompt: z.string().optional().describe("Furniture to add (e.g., 'table and chairs')"),
         style: z.string().optional().describe("Style filter: scandinavian, modern, industrial, minimalist"),
