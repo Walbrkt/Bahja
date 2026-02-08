@@ -24,11 +24,11 @@ const server = new McpServer(
     },
     {
       description:
-        "Interior design tool that shows IKEA furniture catalogue. When user shares a room image URL and mentions furniture they want (e.g., 'add a table and two chairs'), immediately call this tool with imageUrl and prompt (furniture description) to show matching IKEA products in the widget. User will then click products in the widget to generate. DO NOT ask user for product details - the tool will show them the catalogue.",
+        "Interior design tool that shows IKEA furniture catalogue. When user shares a room image URL and mentions furniture (e.g., pastes image URL then says 'add a red sofa'), immediately call this tool with imageUrl (the URL they shared) and prompt (the furniture description like 'red sofa'). Widget shows matching IKEA products for user to click. DO NOT ask user for product details - show catalogue immediately.",
       inputSchema: {
-        imageUrl: z.string().optional().describe("Room image URL from user's messages"),
+        imageUrl: z.string().optional().describe("Room image URL from user's message (e.g., https://... .jpg or data: URI)"),
         productImageUrl: z.string().optional().describe("INTERNAL: Extract 'Product Image:' URL when user sends 'Generate room with this furniture' message from widget"),
-        prompt: z.string().optional().describe("ONLY the furniture TYPE (e.g., 'chandelier', 'table', 'sofa', 'chair', 'bed', 'bookshelf'). Extract the generic furniture type from user's message or from 'Product: BRAND Name' extract just the type (e.g., 'Product: SÖDERHAMN Sofa section' → use 'sofa'). NEVER use full brand names or 'furniture'"),
+        prompt: z.string().optional().describe("The furniture description with adjectives (e.g., 'red sofa', 'modern chandelier', 'wooden table'). Extract ONLY the furniture description from user's message: 'add a red sofa' → 'red sofa', '[image] add a modern table' → 'modern table'. Keep colors/materials but remove verbs like 'add', 'I want', etc."),
         style: z.string().optional().describe("Style filter"),
         budget: z.number().optional().describe("Budget in EUR"),
         selectedProductId: z.string().optional().describe("INTERNAL: Extract 'Product ID:' from widget-generated messages to trigger image generation"),
@@ -84,6 +84,11 @@ const server = new McpServer(
             ? `${style} style furniture`  // Or search by style
             : "furniture";  // Fallback to general
 
+          console.log("🔍 Building search query:");
+          console.log("   prompt parameter:", prompt || 'NONE');
+          console.log("   style parameter:", style || 'NONE');
+          console.log("   Final searchQuery:", searchQuery);
+
           const products = await searchIkeaProductsAPI({
             query: searchQuery,
             style,
@@ -125,7 +130,17 @@ const server = new McpServer(
         }
 
         // PHASE 3: Generate image immediately (have both imageUrl + selectedProductId)
-        const imagePrompt = prompt || "Add furniture to this room";
+        // Use the same search query logic as PHASE 2 for consistency
+        const imagePrompt = prompt 
+          ? prompt  // Use furniture type extracted by AI (e.g., "chandelier", "sofa")
+          : style 
+          ? `${style} style furniture`
+          : "furniture";
+
+        console.log("🎨 PHASE 3: Generating image");
+        console.log("   prompt parameter:", prompt || 'NONE');
+        console.log("   style parameter:", style || 'NONE');
+        console.log("   imagePrompt for fal.ai:", imagePrompt);
 
         let furnishedImageUrl: string;
         let processingTime = 0;
@@ -146,7 +161,7 @@ const server = new McpServer(
 
         // Get products for display in result (optional, for showing related items)
         const products = await searchIkeaProductsAPI({
-          query: prompt || style || "furniture",
+          query: imagePrompt,  // Use same query as image generation
           style,
           maxPrice: budget,
           limit: 8,
