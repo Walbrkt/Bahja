@@ -84,7 +84,7 @@ function InteriorArchitect() {
   // Show products to select
   if (mode === "selection" && products.length > 0 && !furnishedImageUrl) {
     return (
-      <div style={{ backgroundColor: "#ffffff", minHeight: "400px" }}>
+      <div className="app">
         <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
             <h2 style={{ fontSize: "28px", margin: "0 0 8px 0" }}>Choose Furniture to Add</h2>
@@ -235,7 +235,7 @@ function InteriorArchitect() {
   // Show generated result
   if (furnishedImageUrl) {
     return (
-      <div style={{ backgroundColor: "#ffffff", minHeight: "400px" }}>
+      <div className="app">
         <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
           <div style={{
             backgroundColor: "white",
@@ -407,12 +407,10 @@ function InteriorArchitect() {
   }
 
   return (
-    <div style={{ padding: "40px", textAlign: "center", minHeight: "300px", backgroundColor: "#ffffff" }}>
-      <div style={{ maxWidth: "600px", margin: "0 auto" }}>
-        <h2 style={{ fontSize: "24px", color: "#111827", marginBottom: "16px" }}>🏠 Interior Architect</h2>
-        <p style={{ fontSize: "16px", color: "#6b7280" }}>
-          Share a room image URL in the chat to browse IKEA furniture
-        </p>
+    <div className="app">
+      <div className="empty-state">
+        <h2>🏠 Interior Architect</h2>
+        <p>Share a room image URL to browse furniture</p>
       </div>
     </div>
   );
