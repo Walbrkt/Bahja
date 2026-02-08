@@ -1,6 +1,6 @@
 import "@/index.css";
 import { useState } from "react";
-import { mountWidget } from "skybridge/web";
+import { mountWidget, useSendFollowUpMessage } from "skybridge/web";
 import { useOpenExternal } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
 
@@ -25,6 +25,7 @@ function InteriorArchitect() {
   const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
   const [isGenerating, setIsGenerating] = useState(false);
   const openExternal = useOpenExternal();
+  const sendFollowUpMessage = useSendFollowUpMessage();
 
   const products = (responseMetadata?.products || callToolData?.meta?.products || []) as IkeaProduct[];
   const mode = (responseMetadata?.mode || callToolData?.meta?.mode || "needImage") as "needImage" | "selection" | "result";
@@ -47,12 +48,10 @@ function InteriorArchitect() {
   const handleProductSelect = async (product: IkeaProduct) => {
     setIsGenerating(true);
     try {
-      await callTool({
-        imageUrl: storedRoomImage,
-        productImageUrl: product.imageUrl,
-        selectedProductId: product.id,
-        prompt: product.name,
-      });
+      // Instead of calling tool directly, send message to AI to generate
+      sendFollowUpMessage(`Generate room with ${product.name}`);
+    } catch (error) {
+      console.error("Error:", error);
     } finally {
       setIsGenerating(false);
     }
