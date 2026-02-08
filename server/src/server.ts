@@ -88,7 +88,7 @@ const server = new McpServer(
             query: searchQuery,
             style,
             maxPrice: budget,
-            limit: 12,
+            limit: 10,
           });
 
           const response = {
@@ -149,7 +149,7 @@ const server = new McpServer(
           query: prompt || style || "furniture",
           style,
           maxPrice: budget,
-          limit: 8,
+          limit: 10,
         });
 
         return {

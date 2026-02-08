@@ -33,7 +33,7 @@ interface IkeaSearchParams {
  */
 export async function searchIkeaProducts({
   query,
-  limit = 8,
+  limit = 10,
 }: IkeaSearchParams): Promise<IkeaProduct[]> {
   const serpApiKey = process.env.SERPAPI_KEY;
   
@@ -51,7 +51,7 @@ export async function searchIkeaProducts({
       api_key: serpApiKey,
       engine: "google_shopping",
       q: searchQuery,
-      num: limit.toString(),
+      num: Math.max(limit * 2, 20).toString(), // Request more results to filter for relevance
       gl: "us",
       hl: "en",
     });
@@ -95,8 +95,20 @@ export async function searchIkeaProducts({
       }
     }
 
-    console.log(`✅ Extracted ${products.length} IKEA products with images`);
-    return products;
+    // Score products by relevance to the search query
+    const scoredProducts = products.map(product => ({
+      product,
+      relevanceScore: calculateRelevance(query, product),
+    }));
+
+    // Sort by relevance score (highest first) and keep top 10
+    const topProducts = scoredProducts
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, Math.min(limit, 10))
+      .map(item => item.product);
+
+    console.log(`✅ Extracted ${topProducts.length} IKEA products (top 10 most relevant)`);
+    return topProducts;
   } catch (error) {
     console.error("❌ IKEA product search failed:", error);
     throw error;
@@ -165,4 +177,38 @@ function extractCategory(title: string, snippet: string): string {
   if (text.includes('lamp') || text.includes('light')) return 'Lighting';
   
   return 'Furniture';
+}
+
+/**
+ * Calculate relevance score for a product based on search query match
+ * Scores higher for exact matches in name/description
+ */
+function calculateRelevance(query: string, product: IkeaProduct): number {
+  const queryTerms = query.toLowerCase().split(/\s+/);
+  const productText = `${product.name} ${product.description}`.toLowerCase();
+  
+  let score = 0;
+  
+  // Exact phrase match in name (highest priority)
+  if (product.name.toLowerCase().includes(query.toLowerCase())) {
+    score += 100;
+  }
+  
+  // Individual term matches in product name
+  for (const term of queryTerms) {
+    if (term.length > 2) { // Ignore short words like "a", "to", etc
+      if (product.name.toLowerCase().includes(term)) {
+        score += 30;
+      } else if (productText.includes(term)) {
+        score += 10;
+      }
+    }
+  }
+  
+  // Bonus for having a valid image
+  if (product.imageUrl && !product.imageUrl.includes('unsplash')) {
+    score += 5;
+  }
+  
+  return score;
 }
