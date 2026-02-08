@@ -32,6 +32,11 @@ const server = new McpServer(
         style: z.string().optional().describe("Style filter"),
         budget: z.number().optional().describe("Budget in EUR"),
         selectedProductId: z.string().optional().describe("INTERNAL: Extract 'Product ID:' from widget-generated messages to trigger image generation"),
+        selectedFurniture: z.array(z.object({
+          name: z.string().describe("Furniture name (e.g., 'SÖDERHAMN Sofa')"),
+          imageUrl: z.string().describe("Furniture product image URL"),
+          id: z.string().describe("Furniture product ID"),
+        })).optional().describe("INTERNAL: List of all selected furniture items to be added in the room. Used to accumulate multiple furniture selections."),
       },
       annotations: {
         readOnlyHint: true,
@@ -39,7 +44,7 @@ const server = new McpServer(
         destructiveHint: false,
       },
     },
-    async ({ imageUrl, productImageUrl, prompt, style, budget, selectedProductId }) => {
+    async ({ imageUrl, productImageUrl, prompt, style, budget, selectedProductId, selectedFurniture }) => {
       try {
         console.log("\n" + "=".repeat(80));
         console.log("🔍 INTERIOR ARCHITECT TOOL CALLED");
@@ -49,6 +54,7 @@ const server = new McpServer(
           imageUrlType: imageUrl?.startsWith('data:') ? 'DATA-URI' : imageUrl?.startsWith('http') ? 'HTTP-URL' : imageUrl ? 'UNKNOWN' : 'MISSING',
           productImageUrl: productImageUrl ? productImageUrl.substring(0, 80) : 'none',
           selectedProductId: selectedProductId || 'none',
+          selectedFurnitureCount: selectedFurniture?.length || 0,
           prompt: prompt || 'none',
           style: style || 'none',
           budget: budget || 'none',
@@ -124,8 +130,21 @@ const server = new McpServer(
           return response;
         }
 
-        // PHASE 3: Generate image immediately (have both imageUrl + selectedProductId)
-        const imagePrompt = prompt || "Add furniture to this room";
+        // PHASE 3: Generate image immediately (have both imageUrl + selectedProductId OR selectedFurniture)
+        // If selectedFurniture array is provided, use it; otherwise fall back to single product
+        const furnitureToAdd = selectedFurniture?.length ? 
+          selectedFurniture.map(f => f.name).join(", ") :
+          prompt || "Add furniture to this room";
+        
+        const allProductImages = selectedFurniture?.length ?
+          selectedFurniture.map(f => f.imageUrl) :
+          productImageUrl ? [productImageUrl] : [];
+
+        console.log("🎨 Generating room with:", {
+          furnitureItems: furnitureToAdd,
+          furnitureCount: selectedFurniture?.length || 1,
+          hasMultipleFurniture: selectedFurniture?.length ? true : false,
+        });
 
         let furnishedImageUrl: string;
         let processingTime = 0;
@@ -133,14 +152,15 @@ const server = new McpServer(
         if (process.env.FAL_API_KEY) {
           const result = await editRoomImage({
             imageUrl,
-            productImageUrl, // Use passed product image URL
-            prompt: imagePrompt,
+            productImageUrl: allProductImages[0] || productImageUrl, // Use first product image, or fallback
+            productImageUrls: allProductImages.length > 1 ? allProductImages : undefined, // Pass all if multiple
+            prompt: furnitureToAdd,
             style,
           });
           furnishedImageUrl = result.furnishedImageUrl;
           processingTime = result.processingTime;
         } else {
-          const encoded = encodeURIComponent(`Interior design: ${imagePrompt}, ${style || "modern"} style`);
+          const encoded = encodeURIComponent(`Interior design: Add ${furnitureToAdd}, ${style || "modern"} style`);
           furnishedImageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=768&seed=${Date.now()}&nologo=true`;
         }
 

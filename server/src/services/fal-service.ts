@@ -6,6 +6,7 @@
 interface FalImageEditRequest {
   imageUrl: string;
   productImageUrl?: string;
+  productImageUrls?: string[]; // Support multiple furniture images for accumulation
   prompt: string;
   style?: string;
 }
@@ -135,6 +136,7 @@ async function ensureFalCompatibleUrl(imageUrl: string, falApiKey: string): Prom
 export async function editRoomImage({
   imageUrl,
   productImageUrl,
+  productImageUrls,
   prompt,
   style,
 }: FalImageEditRequest): Promise<FalImageEditResponse> {
@@ -146,16 +148,19 @@ export async function editRoomImage({
 
   const startTime = Date.now();
 
+  // Use multiple product URLs if provided, otherwise fall back to single productImageUrl
+  const furnitureUrls = productImageUrls?.length ? productImageUrls : (productImageUrl ? [productImageUrl] : []);
+  const hasFurniture = furnitureUrls.length > 0;
+
   // Build prompt for furniture editing with reference
-  const enhancedPrompt = productImageUrl 
+  const enhancedPrompt = hasFurniture
     ? [
         "Image 1: base room (keep walls, floor, lighting as-is)",
-        `Image 2: reference ${prompt}`,
-        `Add the ${prompt} naturally into the room`,
-        `Position centrally or in empty space`,
-        `Orient parallel to walls - align with room architecture`,
-        `Place flat on floor, matching room perspective and vanishing point`,
-        `Scale proportionally to room size`,
+        `Add the following items to the room: ${prompt}`,
+        `Images 2+: reference furniture to add`,
+        `Naturally place all furniture into the room`,
+        `Position items in empty spaces to compose a coherent interior`,
+        `Maintain room architecture and perspective`,
         `Match lighting and shadows`,
         style ? `${style} style` : "",
       ].filter(Boolean).join(". ")
@@ -168,20 +173,25 @@ export async function editRoomImage({
 
   console.log(`🖼️ Generating with nano-banana/edit:`);
   console.log(`   📍 Base room: ${imageUrl.substring(0, 100)}...`);
-  if (productImageUrl) console.log(`   🛋️ Reference product: ${productImageUrl.substring(0, 100)}...`);
+  if (furnitureUrls.length > 0) {
+    console.log(`   🛋️ Reference products: ${furnitureUrls.length} item(s)`);
+    furnitureUrls.forEach((url, i) => console.log(`      ${i + 1}. ${url.substring(0, 80)}...`));
+  }
   console.log(`   💬 Prompt: ${enhancedPrompt.substring(0, 150)}...`);
 
   try {
     // Convert data URIs to fal.ai compatible URLs (upload if needed)
     console.log(`🔄 Ensuring images are fal.ai compatible...`);
     const roomImageUrl = await ensureFalCompatibleUrl(imageUrl, falApiKey);
-    const productUrl = productImageUrl ? await ensureFalCompatibleUrl(productImageUrl, falApiKey) : undefined;
+    const productUrls = await Promise.all(
+      furnitureUrls.map(url => ensureFalCompatibleUrl(url, falApiKey))
+    );
     
-    const images = productUrl ? [roomImageUrl, productUrl] : [roomImageUrl];
+    const images = [roomImageUrl, ...productUrls];
     
     console.log(`📤 Sending ${images.length} images to fal.ai nano-banana/edit`);
     console.log(`   Image 1 (room): ${roomImageUrl}`);
-    if (productUrl) console.log(`   Image 2 (product): ${productUrl}`);
+    productUrls.forEach((url, i) => console.log(`   Image ${i + 2} (product): ${url}`));
     
     const response = await fetch("https://fal.run/fal-ai/nano-banana/edit", {
       method: "POST",
