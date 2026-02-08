@@ -1,6 +1,6 @@
 import "@/index.css";
 import { useState, useEffect } from "react";
-import { mountWidget, useSendFollowUpMessage, useFiles } from "skybridge/web";
+import { mountWidget, useSendFollowUpMessage } from "skybridge/web";
 import { useOpenExternal } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
 
@@ -24,39 +24,15 @@ function InteriorArchitect() {
   const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
   const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
-  const [furnitureInput, setFurnitureInput] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
   const openExternal = useOpenExternal();
   const sendFollowUpMessage = useSendFollowUpMessage();
-  const { upload, getDownloadUrl } = useFiles();
 
   const products = (responseMetadata?.products || callToolData?.meta?.products || []) as IkeaProduct[];
   const mode = (responseMetadata?.mode || callToolData?.meta?.mode) as "needImage" | "selection" | "result" | undefined;
-  const storedRoomImage = uploadedImageUrl || (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
+  const storedRoomImage = (responseMetadata?.roomImageUrl || callToolData?.meta?.roomImageUrl) as string | undefined;
   const furnishedImageUrl = (responseMetadata?.furnishedImageUrl || callToolData?.meta?.furnishedImageUrl) as string | undefined;
   const userPrompt = (responseMetadata?.userPrompt || callToolData?.meta?.userPrompt) as string | undefined;
   const isLoading = isPending || isCallPending;
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      // Upload file and get downloadable URL
-      const { fileId } = await upload(file);
-      const { downloadUrl } = await getDownloadUrl({ fileId });
-      
-      setUploadedImageUrl(downloadUrl);
-    } catch (error) {
-      console.error("Upload failed:", error);
-      alert("Failed to upload image. Please try again.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   // Debug logging
   console.log("Widget State:", {
@@ -89,102 +65,34 @@ function InteriorArchitect() {
     }
   };
 
-  // Always show upload UI first if no image is uploaded
-  if (!storedRoomImage && !uploadedImageUrl) {
+  // Show waiting message if no room image or products yet
+  if (!storedRoomImage && products.length === 0) {
     return (
       <div className="app">
         <div className="empty-state">
           <h2>🏠 Interior Architect</h2>
-          <p style={{ marginBottom: "24px", fontSize: "16px" }}>Start by uploading a room image</p>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            disabled={isUploading}
-            style={{
-              padding: "12px 24px",
-              fontSize: "16px",
-              cursor: isUploading ? "not-allowed" : "pointer",
-              borderRadius: "8px",
-              border: "2px solid #3b82f6",
-              backgroundColor: isUploading ? "#e5e7eb" : "white",
-            }}
-          />
-          {isUploading && <p style={{ marginTop: "12px", color: "#6b7280" }}>Uploading...</p>}
+          <p style={{ fontSize: "16px", color: "#6b7280" }}>Share a room image URL in the chat to get started</p>
         </div>
       </div>
     );
   }
 
-  // After upload: show furniture input form in the widget
-  if ((uploadedImageUrl || storedRoomImage) && (mode === "needImage" || !mode) && products.length === 0) {
-    const handleFurnitureSubmit = () => {
-      if (!furnitureInput.trim()) return;
-      const roomUrl = uploadedImageUrl || storedRoomImage;
-      setIsSearching(true);
-      // Send explicit message with both imageUrl and prompt for the AI to call the tool
-      sendFollowUpMessage(
-        `Please call the interior-architect tool with these exact parameters:\n` +
-        `imageUrl: ${roomUrl}\n` +
-        `prompt: ${furnitureInput.trim()}\n` +
-        `\nSearch IKEA for "${furnitureInput.trim()}" and show me options for my room.`
-      );
-    };
-
+  // Show room image preview while waiting for furniture selection
+  if (storedRoomImage && (mode === "needImage" || !mode) && products.length === 0) {
     return (
       <div className="app">
         <div className="empty-state">
-          <h2>✅ Room Image Ready</h2>
-          <p style={{ marginBottom: "16px", fontSize: "16px", color: "#6b7280" }}>What furniture would you like to add?</p>
-          
-          <div style={{ display: "flex", gap: "12px", maxWidth: "500px", width: "100%", marginBottom: "24px" }}>
-            <input
-              type="text"
-              value={furnitureInput}
-              onChange={(e) => setFurnitureInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleFurnitureSubmit()}
-              placeholder="e.g. red sofa, chandelier, wooden table..."
-              disabled={isSearching}
-              style={{
-                flex: 1,
-                padding: "14px 18px",
-                fontSize: "16px",
-                border: "2px solid #3b82f6",
-                borderRadius: "10px",
-                outline: "none",
-              }}
-            />
-            <button
-              onClick={handleFurnitureSubmit}
-              disabled={!furnitureInput.trim() || isSearching}
-              style={{
-                padding: "14px 28px",
-                fontSize: "16px",
-                fontWeight: 600,
-                backgroundColor: !furnitureInput.trim() || isSearching ? "#9ca3af" : "#4f46e5",
-                color: "white",
-                border: "none",
-                borderRadius: "10px",
-                cursor: !furnitureInput.trim() || isSearching ? "not-allowed" : "pointer",
-                transition: "all 0.2s",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {isSearching ? "Searching..." : "Search IKEA →"}
-            </button>
-          </div>
-
-          {(uploadedImageUrl || storedRoomImage) && (
-            <img 
-              src={uploadedImageUrl || storedRoomImage} 
-              alt="Uploaded room" 
-              style={{ 
-                maxWidth: "400px", 
-                borderRadius: "12px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-              }} 
-            />
-          )}
+          <h2>✅ Room Image Received</h2>
+          <p style={{ marginBottom: "16px", fontSize: "16px", color: "#6b7280" }}>Tell me what furniture you'd like to add in the chat</p>
+          <img 
+            src={storedRoomImage} 
+            alt="Room" 
+            style={{ 
+              maxWidth: "400px", 
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+            }} 
+          />
         </div>
       </div>
     );
