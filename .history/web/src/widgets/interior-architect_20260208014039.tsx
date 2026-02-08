@@ -2,7 +2,7 @@ import "@/index.css";
 import { useState } from "react";
 import { mountWidget } from "skybridge/web";
 import { useOpenExternal } from "skybridge/web";
-import { useToolInfo, useCallTool } from "../helpers";
+import { useToolInfo, useCallTool, useSendMessage } from "../helpers";
 
 interface IkeaProduct {
   id: string;

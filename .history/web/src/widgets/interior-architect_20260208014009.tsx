@@ -2,7 +2,7 @@ import "@/index.css";
 import { useState } from "react";
 import { mountWidget } from "skybridge/web";
 import { useOpenExternal } from "skybridge/web";
-import { useToolInfo, useCallTool } from "../helpers";
+import { useToolInfo, useCallTool, useSendMessage } from "../helpers";
 
 interface IkeaProduct {
   id: string;
@@ -23,6 +23,7 @@ interface IkeaProduct {
 function InteriorArchitect() {
   const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
   const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
+  const { sendMessage } = useSendMessage();
   const [isGenerating, setIsGenerating] = useState(false);
   const openExternal = useOpenExternal();
 
@@ -35,12 +36,8 @@ function InteriorArchitect() {
   const handleProductSelect = async (product: IkeaProduct) => {
     setIsGenerating(true);
     try {
-      await callTool({
-        imageUrl: storedRoomImage,
-        productImageUrl: product.imageUrl,
-        selectedProductId: product.id,
-        prompt: product.name,
-      });
+      // Send as a new chat message - creates new conversation turn
+      await sendMessage(`Generate room with this furniture: ${product.name} (${product.price}€). Room image: ${storedRoomImage}. Product image: ${product.imageUrl}`);
     } finally {
       setIsGenerating(false);
     }
@@ -49,10 +46,15 @@ function InteriorArchitect() {
   // Need image from chat
   if (mode === "needImage" && !storedRoomImage) {
     return (
-      <div className="app">
-        <div className="empty-state">
-          <h2>🏠 Interior Architect</h2>
-          <p>Share a room image URL in the chat to get started</p>
+      <div style={{ padding: "40px", textAlign: "center", minHeight: "300px", backgroundColor: "#ffffff" }}>
+        <div style={{ maxWidth: "600px", margin: "0 auto" }}>
+          <h2 style={{ fontSize: "24px", color: "#111827", marginBottom: "16px" }}>🏠 Interior Architect</h2>
+          <p style={{ fontSize: "16px", color: "#6b7280", lineHeight: "1.6" }}>
+            Share a room image URL in the chat to browse IKEA furniture and visualize it in your space.
+          </p>
+          <p style={{ fontSize: "14px", color: "#9ca3af", marginTop: "12px" }}>
+            Example: Paste an image URL, then say "show me chairs for this room"
+          </p>
         </div>
       </div>
     );
@@ -61,10 +63,20 @@ function InteriorArchitect() {
   // Loading catalogue
   if (isLoading && products.length === 0) {
     return (
-      <div className="app">
-        <div className="empty-state">
-          <h2>🔄 Loading IKEA Catalogue...</h2>
+      <div style={{ padding: "40px", textAlign: "center", minHeight: "300px", backgroundColor: "#ffffff" }}>
+        <div style={{ maxWidth: "600px", margin: "0 auto" }}>
+          <div style={{
+            width: "48px",
+            height: "48px",
+            margin: "0 auto 24px",
+            border: "4px solid #e5e7eb",
+            borderTop: "4px solid #4f46e5",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+          }} />
+          <h2 style={{ fontSize: "20px", color: "#111827" }}>🔄 Loading IKEA Catalogue...</h2>
         </div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -72,7 +84,7 @@ function InteriorArchitect() {
   // Show products to select
   if (mode === "selection" && products.length > 0 && !furnishedImageUrl) {
     return (
-      <div className="app">
+      <div style={{ backgroundColor: "#ffffff", minHeight: "400px" }}>
         <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
             <h2 style={{ fontSize: "28px", margin: "0 0 8px 0" }}>Choose Furniture to Add</h2>
@@ -223,7 +235,7 @@ function InteriorArchitect() {
   // Show generated result
   if (furnishedImageUrl) {
     return (
-      <div className="app">
+      <div style={{ backgroundColor: "#ffffff", minHeight: "400px" }}>
         <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
           <div style={{
             backgroundColor: "white",

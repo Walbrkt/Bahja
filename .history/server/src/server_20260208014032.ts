@@ -24,7 +24,7 @@ const server = new McpServer(
     },
     {
       description:
-        "Interior design widget. CRITICAL: When user uploads/shares a room image, extract the image URL and pass it as imageUrl parameter. Call this tool immediately when user mentions furniture, decorating, or room design.",
+        "Interior design widget. When user wants to add furniture to their room or clicks a product in the widget, call this tool. The tool shows IKEA products and generates visualizations of furniture added to rooms.",
       inputSchema: {
         imageUrl: z.string().optional().describe("Room image URL from user chat"),
         productImageUrl: z.string().optional().describe("Product image URL from selected product"),

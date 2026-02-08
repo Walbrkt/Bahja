@@ -2,7 +2,7 @@ import "@/index.css";
 import { useState } from "react";
 import { mountWidget } from "skybridge/web";
 import { useOpenExternal } from "skybridge/web";
-import { useToolInfo, useCallTool } from "../helpers";
+import { useToolInfo, useCallTool, useSendMessage } from "../helpers";
 
 interface IkeaProduct {
   id: string;
@@ -23,6 +23,7 @@ interface IkeaProduct {
 function InteriorArchitect() {
   const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
   const { callTool, data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
+  const { sendMessage } = useSendMessage();
   const [isGenerating, setIsGenerating] = useState(false);
   const openExternal = useOpenExternal();
 
