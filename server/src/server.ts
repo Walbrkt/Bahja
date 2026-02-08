@@ -24,14 +24,14 @@ const server = new McpServer(
     },
     {
       description:
-        "Interior design widget. CRITICAL: When user uploads/shares a room image, extract the image URL and pass it as imageUrl parameter. Call this tool immediately when user mentions furniture, decorating, or room design.",
+        "Generate furnished room images. When user provides room image and selects furniture, extract: 1) Room image URL → imageUrl, 2) Product image URL → productImageUrl, 3) Product ID → selectedProductId, 4) Product name → prompt. ALWAYS extract and pass all these parameters when user says 'Generate room with' or provides product details.",
       inputSchema: {
-        imageUrl: z.string().optional().describe("Room image URL from user chat"),
-        productImageUrl: z.string().optional().describe("Product image URL from selected product"),
-        prompt: z.string().optional().describe("Furniture to add (e.g., 'table and chairs')"),
-        style: z.string().optional().describe("Style filter: scandinavian, modern, industrial, minimalist"),
+        imageUrl: z.string().optional().describe("Room image URL from user's previous messages"),
+        productImageUrl: z.string().optional().describe("CRITICAL: Extract the 'Product Image:' URL from user's message when generating"),
+        prompt: z.string().optional().describe("Product name - extract from 'Product:' line in user message"),
+        style: z.string().optional().describe("Style filter"),
         budget: z.number().optional().describe("Budget in EUR"),
-        selectedProductId: z.string().optional().describe("Product ID - triggers immediate generation"),
+        selectedProductId: z.string().optional().describe("CRITICAL: Extract 'Product ID:' from user's message when they request generation. This triggers the image generation."),
       },
       annotations: {
         readOnlyHint: true,

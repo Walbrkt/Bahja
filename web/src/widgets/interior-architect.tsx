@@ -48,8 +48,14 @@ function InteriorArchitect() {
   const handleProductSelect = async (product: IkeaProduct) => {
     setIsGenerating(true);
     try {
-      // Instead of calling tool directly, send message to AI to generate
-      sendFollowUpMessage(`Generate room with ${product.name}`);
+      // Send message with product details for AI to extract
+      sendFollowUpMessage(
+        `Generate room with this furniture:\n\n` +
+        `Product: ${product.name}\n` +
+        `Product Image: ${product.imageUrl}\n` +
+        `Product ID: ${product.id}\n\n` +
+        `Use the room image already provided and add this furniture to it.`
+      );
     } catch (error) {
       console.error("Error:", error);
     } finally {
