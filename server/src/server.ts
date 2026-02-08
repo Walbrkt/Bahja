@@ -169,10 +169,17 @@ const server = new McpServer(
         });
 
         return {
-          content: [{
-            type: "text" as const,
-            text: `✨ **Your furnished room is ready!**\n\n📸 Generated Image:\n${furnishedImageUrl}\n\n⏱️ Processing time: ${processingTime}ms\n\n👇 Check the widget below to view the image and browse more IKEA products.`,
-          }],
+          content: [
+            {
+              type: "image" as const,
+              data: furnishedImageUrl,
+              mimeType: "image/jpeg",
+            },
+            {
+              type: "text" as const,
+              text: `✨ **Your furnished room is ready!**\n\n⏱️ Processing time: ${processingTime}ms\n\n👇 Check the widget below to browse more IKEA products.`,
+            }
+          ],
           _meta: {
             furnishedImageUrl,
             originalImageUrl: imageUrl,
