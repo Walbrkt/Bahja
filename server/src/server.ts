@@ -24,19 +24,24 @@ const server = new McpServer(
     },
     {
       description:
-        "Interior design tool that shows IKEA furniture catalogue. Flow: 1) Widget shows upload button first. 2) User uploads image, widget asks 'What furniture would you like to add?'. 3) When user responds with furniture description (e.g., 'a red sofa'), call this tool with imageUrl (from upload message) and prompt (furniture description). DO NOT call tool until user specifies what furniture they want.",
+        "Interior design tool. ALWAYS call this tool immediately when the conversation starts with no parameters to show the upload widget. After user uploads an image and says what furniture they want, call again with imageUrl and prompt.",
       inputSchema: {
-        imageUrl: z.string().optional().describe("Room image URL - extract from previous 'I uploaded a room image: <URL>' message in conversation. This URL was sent by the widget after user uploaded."),
-        productImageUrl: z.string().optional().describe("INTERNAL: Extract 'Product Image:' URL when user sends 'Generate room with this furniture' message from widget"),
-        prompt: z.string().optional().describe("The furniture description with adjectives (e.g., 'red sofa', 'modern chandelier', 'wooden table'). For initial user message: extract furniture description ('add a red sofa' → 'red sofa'). For widget messages: extract from 'User wants:' line which contains the original description."),
+        imageUrl: z.string().optional().describe("Room image URL - extract from 'I uploaded a room image: <URL>' message"),
+        productImageUrl: z.string().optional().describe("INTERNAL: Extract 'Product Image:' URL from widget 'Generate room with this furniture' message"),
+        prompt: z.string().optional().describe("Furniture description (e.g., 'red sofa', 'chandelier', 'wooden table'). Extract from user message: 'add a red sofa' → 'red sofa'. From widget: extract 'User wants:' line."),
         style: z.string().optional().describe("Style filter"),
         budget: z.number().optional().describe("Budget in EUR"),
-        selectedProductId: z.string().optional().describe("INTERNAL: Extract 'Product ID:' from widget-generated messages to trigger image generation"),
+        selectedProductId: z.string().optional().describe("INTERNAL: Extract 'Product ID:' from widget messages"),
       },
       annotations: {
         readOnlyHint: true,
         openWorldHint: true,
         destructiveHint: false,
+      },
+      _meta: {
+        "openai/widgetAccessible": true,
+        "openai/toolInvocation/invoking": "Loading Interior Architect...",
+        "openai/toolInvocation/invoked": "Interior Architect is ready.",
       },
     },
     async ({ imageUrl, productImageUrl, prompt, style, budget, selectedProductId }) => {
@@ -57,12 +62,18 @@ const server = new McpServer(
 
         // PHASE 1: Need room image first
         if (!imageUrl) {
-          // Widget shows upload interface - just return empty state
-          console.log("❌ No image provided in imageUrl parameter");
           return {
             content: [{
               type: "text" as const,
-              text: "I need the room image URL. When the user uploads an image, please call this tool again and pass the image URL in the imageUrl parameter.",
+              text: `The Interior Architect widget is now loaded. The user can upload a room image in the widget.
+              
+IMPORTANT INSTRUCTIONS:
+- Tell the user "Welcome! Upload a room image in the widget to get started."
+- When user uploads an image, you will see a message like "I uploaded a room image: <URL>". Remember this URL.
+- Then the AI will ask "What furniture would you like to add to this room?"
+- When user responds with furniture (e.g., "a red sofa"), call this tool again with imageUrl (the upload URL) and prompt (e.g., "red sofa").
+- DO NOT call this tool again until the user specifies what furniture they want.
+- The widget is already showing - don't add extra text about the widget.`,
             }],
             _meta: {
               mode: "needImage",
