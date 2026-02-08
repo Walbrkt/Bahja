@@ -226,12 +226,32 @@ function DesignRoom() {
 
   // Listen for generated image result
   useEffect(() => {
+    console.log("[design-room] imageData effect fired:", { imageData, isImagePending });
     if (imageData && !isImagePending) {
+      console.log("[design-room] imageData FULL:", JSON.stringify(imageData, null, 2));
       const sc = imageData.structuredContent as Record<string, unknown> | undefined;
+      console.log("[design-room] structuredContent:", sc);
       const url = sc?.imageUrl;
+      console.log("[design-room] imageUrl from structuredContent:", url);
       if (url && typeof url === "string") {
+        console.log("[design-room] ✅ Setting generated image URL:", url);
         setGeneratedImageUrl(url);
         setShowResult(true);
+      } else {
+        // Fallback: try other possible locations
+        const metaUrl = (imageData as any)?.meta?.imageUrl;
+        const directUrl = (imageData as any)?.imageUrl;
+        const resultUrl = (imageData as any)?.result;
+        console.log("[design-room] ⚠️ imageUrl not in structuredContent. Trying fallbacks:", {
+          metaUrl, directUrl, resultUrl,
+          dataKeys: Object.keys(imageData),
+        });
+        // Try meta
+        if (metaUrl && typeof metaUrl === "string") {
+          console.log("[design-room] ✅ Found imageUrl in meta:", metaUrl);
+          setGeneratedImageUrl(metaUrl);
+          setShowResult(true);
+        }
       }
     }
   }, [imageData, isImagePending]);
@@ -348,18 +368,36 @@ function DesignRoom() {
     setGeneratedImageUrl(null);
     setImageError(false);
     setShowResult(true); // Show the result section immediately (with loading)
-    callGenerateImage({
-      roomWidth: output.roomDimensions.width,
-      roomLength: output.roomDimensions.length,
-      roomHeight: output.roomDimensions.height,
-      style: output.style || "modern",
-      furnitureNames: furnitureNames.length > 0 ? furnitureNames : ["minimal furniture"],
-      furnitureImageUrls: furnitureImageUrls.length > 0 ? furnitureImageUrls : undefined,
-      furnitureCategories: furnitureCategories.length > 0 ? furnitureCategories : undefined,
-      paintColor: selectedPaint?.description?.split(" ")[0] || undefined,
-      paintHex: selectedPaint?.colorHex || undefined,
-      roomType: output.roomType || "room",
-    });
+    callGenerateImage(
+      {
+        roomWidth: output.roomDimensions.width,
+        roomLength: output.roomDimensions.length,
+        roomHeight: output.roomDimensions.height,
+        style: output.style || "modern",
+        furnitureNames: furnitureNames.length > 0 ? furnitureNames : ["minimal furniture"],
+        furnitureImageUrls: furnitureImageUrls.length > 0 ? furnitureImageUrls : undefined,
+        furnitureCategories: furnitureCategories.length > 0 ? furnitureCategories : undefined,
+        paintColor: selectedPaint?.description?.split(" ")[0] || undefined,
+        paintHex: selectedPaint?.colorHex || undefined,
+        roomType: output.roomType || "room",
+      },
+      {
+        onSuccess: (data) => {
+          console.log("[design-room] callGenerateImage onSuccess:", JSON.stringify(data, null, 2));
+          // Direct extraction as fallback
+          const sc = data?.structuredContent as Record<string, unknown> | undefined;
+          const url = sc?.imageUrl as string | undefined;
+          if (url) {
+            console.log("[design-room] onSuccess: Setting image URL directly:", url);
+            setGeneratedImageUrl(url);
+            setShowResult(true);
+          }
+        },
+        onError: (error) => {
+          console.error("[design-room] callGenerateImage onError:", error);
+        },
+      },
+    );
   };
 
   const totalPrice = selectedItems.reduce((sum, i) => sum + i.price, 0);
@@ -390,7 +428,7 @@ function DesignRoom() {
       {/* ── AI Generated Result (shows when image is generated) ── */}
       {showResult && (
         <div className="dr-result">
-          {isImagePending && (
+          {isImagePending && !generatedImageUrl && (
             <div className="dr-result__loading">
               <div className="rc-loading__spinner" />
               <p>🎨 fal.ai is painting your {output.style} room…</p>
@@ -406,12 +444,30 @@ function DesignRoom() {
                 src={generatedImageUrl}
                 alt={`AI generated ${output.style} room`}
                 className="dr-result__image"
-                onError={() => setImageError(true)}
+                onError={(_e) => {
+                  console.error("[design-room] Image failed to load:", generatedImageUrl);
+                  setImageError(true);
+                }}
+                onLoad={() => {
+                  console.log("[design-room] ✅ Image loaded successfully!");
+                }}
               />
               {imageError && (
                 <div className="dr-result__loading" style={{ padding: "2rem" }}>
-                  <p>⚠️ Image failed to load</p>
-                  <button className="btn btn--primary btn--sm" onClick={handleGenerate}>
+                  <p>⚠️ Image failed to load in widget iframe</p>
+                  <p style={{ fontSize: "0.75rem", wordBreak: "break-all", color: "var(--text-secondary)" }}>
+                    URL: {generatedImageUrl}
+                  </p>
+                  <a
+                    href={generatedImageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn--primary btn--sm"
+                    style={{ marginBottom: 8 }}
+                  >
+                    🔗 Open Image in New Tab
+                  </a>
+                  <button className="btn btn--outline btn--sm" onClick={handleGenerate}>
                     🔄 Try Again
                   </button>
                 </div>
