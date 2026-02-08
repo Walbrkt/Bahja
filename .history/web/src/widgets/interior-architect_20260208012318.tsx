@@ -182,7 +182,7 @@ function InteriorArchitect() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(0, 0, 0, 0.90)",
+            background: "rgba(0, 0, 0, 0.85)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -190,28 +190,25 @@ function InteriorArchitect() {
           }}>
             <div style={{
               background: "white",
-              padding: "48px 64px",
-              borderRadius: "20px",
+              padding: "48px",
+              borderRadius: "16px",
               textAlign: "center",
-              maxWidth: "450px",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+              maxWidth: "400px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
             }}>
               <div style={{
-                width: "80px",
-                height: "80px",
-                margin: "0 auto 32px",
-                border: "5px solid #e5e7eb",
-                borderTop: "5px solid #4f46e5",
+                width: "64px",
+                height: "64px",
+                margin: "0 auto 24px",
+                border: "4px solid #f0f0f0",
+                borderTop: "4px solid #4f46e5",
                 borderRadius: "50%",
-                animation: "spin 0.8s linear infinite",
+                animation: "spin 1s linear infinite",
               }} />
-              <h2 style={{ fontSize: "26px", fontWeight: 700, marginBottom: "16px", color: "#111827" }}>
-                🎨 Generating Image...
+              <h2 style={{ fontSize: "24px", fontWeight: 600, marginBottom: "12px", color: "#333" }}>
+                🎨 Generating Your Room
               </h2>
-              <p style={{ fontSize: "15px", color: "#6b7280", lineHeight: "1.6" }}>
-                Creating your furnished room with AI.<br/>
-                This usually takes 10-30 seconds.
-              </p>
+              <p style={{ fontSize: "14px", color: "#999" }}>This may take 10-30 seconds...</p>
             </div>
           </div>
         )}
