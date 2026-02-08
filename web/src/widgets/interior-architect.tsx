@@ -32,6 +32,16 @@ function InteriorArchitect() {
   const furnishedImageUrl = (responseMetadata?.furnishedImageUrl || callToolData?.meta?.furnishedImageUrl) as string | undefined;
   const isLoading = isPending || isCallPending;
 
+  // Debug logging
+  console.log("Widget State:", {
+    mode,
+    hasFurnishedImageUrl: !!furnishedImageUrl,
+    furnishedImageUrl: furnishedImageUrl?.substring(0, 50),
+    productsCount: products.length,
+    hasResponseMetadata: !!responseMetadata,
+    hasCallToolData: !!callToolData,
+  });
+
   const handleProductSelect = async (product: IkeaProduct) => {
     setIsGenerating(true);
     try {
@@ -220,8 +230,8 @@ function InteriorArchitect() {
     );
   }
 
-  // Show generated result
-  if (furnishedImageUrl) {
+  // Show generated result - check mode OR furnishedImageUrl
+  if (mode === "result" || furnishedImageUrl) {
     return (
       <div className="app">
         <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
@@ -282,11 +292,13 @@ function InteriorArchitect() {
                 />
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(furnishedImageUrl);
-                    const btn = document.activeElement as HTMLButtonElement;
-                    const originalText = btn.textContent;
-                    btn.textContent = "✓ Copied!";
-                    setTimeout(() => btn.textContent = originalText, 2000);
+                    if (furnishedImageUrl) {
+                      navigator.clipboard.writeText(furnishedImageUrl);
+                      const btn = document.activeElement as HTMLButtonElement;
+                      const originalText = btn.textContent;
+                      btn.textContent = "✓ Copied!";
+                      setTimeout(() => btn.textContent = originalText, 2000);
+                    }
                   }}
                   style={{
                     padding: "12px 24px",
