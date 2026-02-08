@@ -1,7 +1,7 @@
 import { McpServer } from "skybridge/server";
 import { z } from "zod";
 import { editRoomImage, generateRoomImage } from "./services/fal-service.js";
-import { searchIkeaProducts } from "./services/ikea-service.js";
+import { searchFurnitureProducts } from "./services/furniture-service.js";
 
 /**
  * Generate an image using fal.ai flux-pro model (same as interior-architect).
@@ -944,6 +944,22 @@ const server = new McpServer(
               "https://www.leroymerlin.fr",
               "https://www.castorama.fr",
               "https://www.autonomous.ai",
+              "https://www.laredoute.fr",
+              "https://www.amazon.fr",
+              "https://www.amazon.com",
+              "https://www.conforama.fr",
+              "https://www.but.fr",
+              "https://www.alinea.com",
+              "https://www.made.com",
+              "https://www.wayfair.com",
+              "https://www.westelm.com",
+              "https://www.cb2.com",
+              "https://www.crateandbarrel.com",
+              "https://www.target.com",
+              "https://www.walmart.com",
+              "https://www.overstock.com",
+              "https://www.potterybarn.com",
+              "https://www.etsy.com",
             ],
           },
         },
@@ -969,7 +985,7 @@ const server = new McpServer(
     },
     async ({ roomWidth, roomLength, roomHeight, style, budget, preferences, roomType }) => {
       try {
-        // ── Search real IKEA products via SerpAPI (Google Shopping) ──
+        // ── Search real furniture products via SerpAPI (Google Shopping) ──
         const furnitureQuery = `${style} ${roomType || ""} ${preferences || ""}`.trim();
         let furniture: Array<{
           id: string; name: string; description: string; price: number; currency: string;
@@ -978,17 +994,16 @@ const server = new McpServer(
         }> = [];
 
         try {
-          const ikeaProducts = await searchIkeaProducts({
+          const serpProducts = await searchFurnitureProducts({
             query: furnitureQuery,
             style,
             maxPrice: budget ? Math.round(budget * 0.7) : undefined,
             limit: 12,
           });
-          furniture = ikeaProducts.map(p => ({
+          furniture = serpProducts.map(p => ({
             ...p,
-            retailer: "IKEA",
           }));
-          console.log(`[design-room] Found ${furniture.length} IKEA products via SERP`);
+          console.log(`[design-room] Found ${furniture.length} products via SERP`);
         } catch (serpError) {
           console.warn("[design-room] SERP search failed, falling back to curated catalog:", serpError);
           // Fallback to curated catalog
@@ -1128,9 +1143,9 @@ const server = new McpServer(
     },
     async (params) => {
       try {
-        // Use real IKEA search via SerpAPI (Google Shopping)
+        // Search furniture across multiple retailers via SerpAPI (Google Shopping)
         const searchQuery = [params.query, params.style, params.category].filter(Boolean).join(" ");
-        const items = await searchIkeaProducts({
+        const items = await searchFurnitureProducts({
           query: searchQuery,
           style: params.style,
           maxPrice: params.budget,
@@ -1151,14 +1166,14 @@ const server = new McpServer(
               height: f.height,
               imageUrl: f.imageUrl,
               buyUrl: f.buyUrl,
-              retailer: "IKEA",
+              retailer: f.retailer,
               category: f.category,
             })),
           },
           content: [
             {
               type: "text" as const,
-              text: `Found ${items.length} IKEA furniture item(s) matching "${params.query}" via Google Shopping.`,
+              text: `Found ${items.length} furniture item(s) matching "${params.query}" from multiple retailers.`,
             },
           ],
         };
@@ -1313,6 +1328,7 @@ const server = new McpServer(
         style: z.string().describe("Design style: moroccan, scandinavian, modern, industrial, bohemian, classic, minimal, french, japanese, tropical"),
         furnitureNames: z.array(z.string()).describe("Names of selected furniture items to include"),
         furnitureImageUrls: z.array(z.string()).optional().describe("Image URLs of selected furniture products to composite into the room"),
+        furnitureCategories: z.array(z.string()).optional().describe("Categories of selected furniture (sofa, table, chair, shelf, lamp, rug, bed, desk, armchair, mirror, wardrobe)"),
         paintColor: z.string().optional().describe("Wall paint color name"),
         paintHex: z.string().optional().describe("Wall paint hex color"),
         roomType: z.string().optional().describe("Room type: living room, bedroom, office, dining room"),
@@ -1324,7 +1340,7 @@ const server = new McpServer(
         destructiveHint: false,
       },
     },
-    async ({ roomWidth, roomLength, roomHeight, style, furnitureNames, furnitureImageUrls, paintColor, paintHex, roomType, userPrompt }) => {
+    async ({ roomWidth, roomLength, roomHeight, style, furnitureNames, furnitureImageUrls, furnitureCategories, paintColor, paintHex, roomType, userPrompt }) => {
       const furnitureList = furnitureNames.length > 0
         ? furnitureNames.join(", ")
         : "minimal furniture";
@@ -1357,17 +1373,79 @@ const server = new McpServer(
         console.log(`[generate-room-image] Compositing ${validImageUrls.length} product images into room…`);
         let currentRoomUrl = baseRoomUrl;
 
-        // Composite up to 3 products (more would degrade quality)
-        for (let i = 0; i < Math.min(validImageUrls.length, 3); i++) {
+        // ── Smart placement strategy ──
+        // Assign each item a different spatial zone based on its category & index
+        // so the AI places items in different parts of the room, avoiding overlap.
+        const placementZones = [
+          "in the center of the room, as the focal piece",
+          "against the left wall, leaving the center open",
+          "against the right wall, away from other furniture",
+          "against the back wall, in the background",
+          "in the left corner of the room",
+          "in the right corner of the room",
+          "near the window or light source",
+          "beside the main seating area",
+        ];
+
+        // Category-aware placement overrides
+        function getPlacementHint(name: string, category: string, index: number): string {
+          const lowerCat = category.toLowerCase();
+          const lowerName = name.toLowerCase();
+
+          // Large seating → center/focal point
+          if (lowerCat.includes("sofa") || lowerCat.includes("canapé") || lowerName.includes("sofa") || lowerName.includes("canapé")) {
+            return "in the center of the room as the main seating piece, facing the viewer";
+          }
+          // Tables → in front of or beside seating
+          if (lowerCat.includes("table") || lowerName.includes("table")) {
+            return "in front of the sofa or seating area, as a coffee table or side table";
+          }
+          // Chairs → beside or across from the main seating
+          if (lowerCat.includes("chair") || lowerCat.includes("fauteuil") || lowerName.includes("chair") || lowerName.includes("fauteuil") || lowerName.includes("chaise")) {
+            return "to the side of the main seating area, angled slightly toward the center of the room";
+          }
+          // Shelves/bookcases/wardrobes → against wall
+          if (lowerCat.includes("shelf") || lowerCat.includes("armoire") || lowerCat.includes("wardrobe") || lowerName.includes("shelf") || lowerName.includes("étagère") || lowerName.includes("armoire") || lowerName.includes("wardrobe")) {
+            return "flat against the back wall or side wall, standing upright";
+          }
+          // Lamps → beside seating or in corner
+          if (lowerCat.includes("lamp") || lowerName.includes("lamp") || lowerName.includes("lampe") || lowerName.includes("lampadaire")) {
+            return "next to the seating area or in a corner, standing on the floor";
+          }
+          // Rugs → on the floor, under/in front of seating
+          if (lowerCat.includes("rug") || lowerCat.includes("tapis") || lowerName.includes("rug") || lowerName.includes("tapis")) {
+            return "on the floor, centered under the main seating arrangement";
+          }
+          // Beds → against wall
+          if (lowerCat.includes("bed") || lowerCat.includes("lit") || lowerName.includes("bed") || lowerName.includes("lit")) {
+            return "against the main wall, centered, as the room's focal piece";
+          }
+          // Desk → against wall or near window
+          if (lowerCat.includes("desk") || lowerCat.includes("bureau") || lowerName.includes("desk") || lowerName.includes("bureau")) {
+            return "against a wall, near a window or light source";
+          }
+          // Mirror → on wall
+          if (lowerCat.includes("mirror") || lowerCat.includes("miroir") || lowerName.includes("mirror") || lowerName.includes("miroir")) {
+            return "hanging on the wall, at eye level, reflecting the room";
+          }
+          // Fallback: cycle through zones to spread items out
+          return placementZones[index % placementZones.length];
+        }
+
+        // Composite ALL selected products into the room
+        for (let i = 0; i < validImageUrls.length; i++) {
           const productUrl = validImageUrls[i];
           const productName = furnitureNames[i] || "furniture";
+          const productCategory = furnitureCategories?.[i] || "furniture";
+          const placementHint = getPlacementHint(productName, productCategory, i);
           try {
-            console.log(`[generate-room-image] Adding product ${i + 1}/${Math.min(validImageUrls.length, 3)}: ${productName}`);
+            console.log(`[generate-room-image] Adding product ${i + 1}/${validImageUrls.length}: ${productName} → ${placementHint}`);
             const result = await editRoomImage({
               imageUrl: currentRoomUrl,
               productImageUrl: productUrl,
               prompt: `Add this ${productName} furniture piece naturally into the room`,
               style,
+              placementHint,
             });
             currentRoomUrl = result.furnishedImageUrl;
             console.log(`[generate-room-image] ✅ Product ${i + 1} composited`);
@@ -1633,7 +1711,7 @@ const server = new McpServer(
             ? `${style} style furniture`
             : "furniture";
 
-          const products = await searchIkeaProducts({
+          const products = await searchFurnitureProducts({
             query: searchQuery,
             style,
             maxPrice: budget,
@@ -1643,7 +1721,7 @@ const server = new McpServer(
           return {
             content: [{
               type: "text" as const,
-              text: `Browse ${products.length} IKEA products. Click any product to instantly generate your furnished room!`,
+              text: `Browse ${products.length} furniture products. Click any product to instantly generate your furnished room!`,
             }],
             _meta: {
               products: products.map(p => ({
@@ -1686,7 +1764,7 @@ const server = new McpServer(
           furnishedImageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=768&seed=${Date.now()}&nologo=true`;
         }
 
-        const products = await searchIkeaProducts({
+        const products = await searchFurnitureProducts({
           query: prompt || style || "furniture",
           style,
           maxPrice: budget,
@@ -1696,7 +1774,7 @@ const server = new McpServer(
         return {
           content: [{
             type: "text" as const,
-            text: `✨ **Your furnished room is ready!**\n\n📸 Generated Image:\n${furnishedImageUrl}\n\n⏱️ Processing time: ${processingTime}ms\n\n👇 Check the widget below to view the image and browse more IKEA products.`,
+            text: `✨ **Your furnished room is ready!**\n\n📸 Generated Image:\n${furnishedImageUrl}\n\n⏱️ Processing time: ${processingTime}ms\n\n👇 Check the widget below to view and browse more products.`,
           }],
           _meta: {
             furnishedImageUrl,

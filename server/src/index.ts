@@ -41,6 +41,15 @@ const ALLOWED_IMAGE_HOSTS = [
   "fal.media",
   "storage.googleapis.com",
   "images.unsplash.com",
+  "encrypted-tbn0.gstatic.com",   // Google Shopping thumbnails
+  "m.media-amazon.com",           // Amazon product images
+  "images-na.ssl-images-amazon.com",
+  "i5.walmartimages.com",         // Walmart
+  "target.scene7.com",            // Target
+  "cb2.scene7.com",               // CB2
+  "assets.weimgs.com",            // West Elm
+  "img.laredoute.com",            // La Redoute
+  "media.conforama.fr",           // Conforama
 ];
 
 app.get("/api/image-proxy", async (req, res) => {

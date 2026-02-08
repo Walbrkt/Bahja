@@ -2,7 +2,6 @@ import "@/index.css";
 
 import { useState, useEffect, useMemo } from "react";
 import { mountWidget, useDisplayMode, createStore } from "skybridge/web";
-import { useOpenExternal } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -87,8 +86,6 @@ function FurnitureSelectCard({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const openExternal = useOpenExternal();
-
   return (
     <div
       className={`dr-card ${selected ? "dr-card--selected" : ""}`}
@@ -127,16 +124,21 @@ function FurnitureSelectCard({
       </div>
 
       {/* Buy link (stop propagation so it doesn't toggle selection) */}
-      <button
+      <a
         className="dr-card__buy"
+        href={item.buyUrl}
+        target="_blank"
+        rel="noopener noreferrer"
         onClick={(e) => {
           e.stopPropagation();
-          openExternal(item.buyUrl);
+          // openExternal is a no-op in devtools, so use native link as primary
+          // and window.open as extra fallback
+          window.open(item.buyUrl, "_blank", "noopener,noreferrer");
         }}
         title={`Buy at ${item.retailer}`}
       >
         🛒
-      </button>
+      </a>
     </div>
   );
 }
@@ -289,6 +291,7 @@ function DesignRoom() {
   const handleGenerate = () => {
     const furnitureNames = selectedFurniture.map((f) => f.name);
     const furnitureImageUrls = selectedFurniture.map((f) => f.imageUrl).filter(Boolean);
+    const furnitureCategories = selectedFurniture.map((f) => f.category || "furniture");
     setGeneratedImageUrl(null);
     setImageError(false);
     setShowResult(true); // Show the result section immediately (with loading)
@@ -299,6 +302,7 @@ function DesignRoom() {
       style: output.style || "modern",
       furnitureNames: furnitureNames.length > 0 ? furnitureNames : ["minimal furniture"],
       furnitureImageUrls: furnitureImageUrls.length > 0 ? furnitureImageUrls : undefined,
+      furnitureCategories: furnitureCategories.length > 0 ? furnitureCategories : undefined,
       paintColor: selectedPaint?.description?.split(" ")[0] || undefined,
       paintHex: selectedPaint?.colorHex || undefined,
       roomType: output.roomType || "room",
@@ -404,6 +408,19 @@ function DesignRoom() {
                   <img src={item.imageUrl} alt={item.name} className="dr-selected-bar__img" />
                 )}
                 <span className="dr-selected-bar__name">{item.name}</span>
+                <a
+                  className="dr-selected-bar__buy"
+                  href={item.buyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(item.buyUrl, "_blank", "noopener,noreferrer");
+                  }}
+                  title="Buy"
+                >
+                  🛒
+                </a>
                 <button
                   className="dr-selected-bar__remove"
                   onClick={() => removeItem(item.id)}

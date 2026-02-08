@@ -1,7 +1,6 @@
 import "@/index.css";
 import { useState } from "react";
 import { mountWidget, useSendFollowUpMessage } from "skybridge/web";
-import { useOpenExternal } from "skybridge/web";
 import { useToolInfo, useCallTool } from "../helpers";
 
 interface IkeaProduct {
@@ -24,7 +23,6 @@ function InteriorArchitect() {
   const { responseMetadata, isPending } = useToolInfo<"interior-architect">();
   const { data: callToolData, isPending: isCallPending } = useCallTool("interior-architect");
   const [isGenerating, setIsGenerating] = useState(false);
-  const openExternal = useOpenExternal();
   const sendFollowUpMessage = useSendFollowUpMessage();
 
   const products = (responseMetadata?.products || callToolData?.meta?.products || []) as IkeaProduct[];
@@ -80,7 +78,7 @@ function InteriorArchitect() {
     return (
       <div className="app">
         <div className="empty-state">
-          <h2>🔄 Loading IKEA Catalogue...</h2>
+          <h2>🔄 Loading Furniture Catalogue...</h2>
         </div>
       </div>
     );
@@ -392,9 +390,16 @@ function InteriorArchitect() {
                       <div style={{ fontSize: "18px", fontWeight: 700, color: "#111827", marginBottom: "12px" }}>
                         {product.price}€
                       </div>
-                      <button
-                        onClick={() => openExternal(product.buyUrl)}
+                      <a
+                        href={product.buyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(product.buyUrl, "_blank", "noopener,noreferrer");
+                        }}
                         style={{
+                          display: "block",
                           width: "100%",
                           padding: "10px",
                           fontSize: "13px",
@@ -405,6 +410,9 @@ function InteriorArchitect() {
                           borderRadius: "8px",
                           cursor: "pointer",
                           transition: "all 0.2s",
+                          textAlign: "center",
+                          textDecoration: "none",
+                          boxSizing: "border-box",
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#e5e7eb";
@@ -413,8 +421,8 @@ function InteriorArchitect() {
                           e.currentTarget.style.backgroundColor = "#f3f4f6";
                         }}
                       >
-                        Buy on IKEA →
-                      </button>
+                        Buy Now →
+                      </a>
                     </div>
                   </div>
                 ))}

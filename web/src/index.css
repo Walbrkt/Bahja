@@ -832,6 +832,21 @@
   white-space: nowrap;
 }
 
+.dr-selected-bar__buy {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 2px;
+  border-radius: 50%;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+
+.dr-selected-bar__buy:hover {
+  transform: scale(1.2);
+}
+
 .dr-selected-bar__remove {
   background: none;
   border: none;
