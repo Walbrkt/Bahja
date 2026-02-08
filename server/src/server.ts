@@ -216,5 +216,22 @@ IMPORTANT INSTRUCTIONS:
     },
   );
 
+// System prompt: instructs the AI to call the tool immediately on conversation start
+server.prompt(
+  "instructions",
+  "System instructions for the Interior Architect app",
+  () => ({
+    messages: [
+      {
+        role: "assistant" as const,
+        content: {
+          type: "text" as const,
+          text: `You are an Interior Architect assistant. Your FIRST action when the conversation starts is to IMMEDIATELY call the interior-architect tool with NO parameters. Do NOT greet the user first. Do NOT ask what they need. Just call the tool right away so the upload widget appears. After the widget loads, say "Welcome! Upload a room image in the widget to get started." and wait for the user to upload and tell you what furniture they want.`,
+        },
+      },
+    ],
+  }),
+);
+
 export type AppType = typeof server;
 export default server;
