@@ -9,9 +9,7 @@
 
 > **Design and furnish rooms through conversation.** Describe your dream room, browse real furniture products, and generate photorealistic AI visualizations — all in one conversational experience.
 
-<div align="center">
-**🏆 Winner — FAL Challenge**
-</div>
+🏆 Winner — FAL Challenge
 
 **Bahja** (بهجة — Arabic for "splendor, delight") transforms the painful, fragmented process of interior design into a single conversational flow. Tell the AI what you want, see curated products from real retailers, select your favorites, and watch AI paint them into your room.
 
