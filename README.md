@@ -1,5 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Hackathon-Paris%202026-blueviolet?style=for-the-badge" alt="Hackathon Paris 2026" />
+  <img src="https://img.shields.io/badge/Winner-FAL%20Challenge-gold?style=for-the-badge" alt="Winner - FAL Challenge" />
   <img src="https://img.shields.io/badge/Built%20with-Skybridge%20MCP-blue?style=for-the-badge" alt="Skybridge MCP" />
   <img src="https://img.shields.io/badge/AI-fal.ai-orange?style=for-the-badge" alt="fal.ai" />
 </p>
@@ -7,6 +8,10 @@
 # 🏠 Bahja — AI Interior Design Assistant
 
 > **Design and furnish rooms through conversation.** Describe your dream room, browse real furniture products, and generate photorealistic AI visualizations — all in one conversational experience.
+
+<div align="center">
+**🏆 Winner — FAL Challenge**
+</div>
 
 **Bahja** (بهجة — Arabic for "splendor, delight") transforms the painful, fragmented process of interior design into a single conversational flow. Tell the AI what you want, see curated products from real retailers, select your favorites, and watch AI paint them into your room.
 
