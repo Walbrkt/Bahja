@@ -170,7 +170,7 @@ ngrok http 3000
 
 ## 📽️ Demo
 
-<video src="web/public/videos/demo-hero.mp4" controls width="800"></video>
+https://github.com/Walbrkt/Bahja/raw/main/web/public/videos/demo-hero.mp4
 
 ---
 
